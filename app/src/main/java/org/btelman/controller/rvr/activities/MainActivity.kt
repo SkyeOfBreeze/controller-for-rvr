@@ -1,7 +1,6 @@
 package org.btelman.controller.rvr.activities
 
 import android.os.Bundle
-import android.text.InputFilter
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
@@ -15,7 +14,6 @@ import org.btelman.logutil.kotlin.LogUtil
 class MainActivity : AppCompatActivity() {
     private var bleLayout: BLEScanSnackBarThing? = null
     val log = LogUtil("MainActivity")
-    var toggle = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,19 +21,31 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
 
         fab.setOnClickListener { view ->
-            toggle = !toggle
-            if(toggle){
-                fab.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-                bleLayout ?: let {
-                    bleLayout = BLEScanSnackBarThing.make(mainCoordinatorLayout)
-                }
-                bleLayout?.show()
+            if(bleLayout?.isShown != true){
+                showScanLayout()
             }
             else{
-                fab.setImageResource(android.R.drawable.stat_sys_data_bluetooth)
-                bleLayout?.dismiss()
+                hideScanLayout()
             }
         }
+    }
+
+    fun showScanLayout(){
+        fab.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+        bleLayout ?: let {
+            bleLayout = BLEScanSnackBarThing.make(mainCoordinatorLayout)
+        }
+        bleLayout?.onItemClickedListener = {
+            log.d { it.toString() }
+            hideScanLayout()
+        }
+        bleLayout?.show()
+    }
+
+    fun hideScanLayout(){
+        fab.setImageResource(android.R.drawable.stat_sys_data_bluetooth)
+        bleLayout?.dismiss()
+        bleLayout?.onItemClickedListener = null
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

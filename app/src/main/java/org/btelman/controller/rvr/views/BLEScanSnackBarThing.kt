@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import android.widget.FrameLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import no.nordicsemi.android.support.v18.scanner.ScanResult
 
 /**
  * Kind of a snack bar, but not really. Google might not be really proud of this
@@ -14,6 +15,13 @@ class BLEScanSnackBarThing(
     parent: ViewGroup,
     val bleLayout: BLEScanLayout
 ) : BaseTransientBottomBar<BLEScanSnackBarThing>(parent, bleLayout, bleLayout) {
+
+    var onItemClickedListener : ((ScanResult)->Unit)? = null
+
+    override fun show() {
+        bleLayout.onItemClicked = onItemClickedListener
+        super.show()
+    }
 
     override fun dismiss() {
         super.dismiss()

@@ -18,18 +18,27 @@ class ScanViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     val scanAddress = itemView.findViewById<TextView>(R.id.scanAddress)
     val scanName = itemView.findViewById<TextView>(R.id.scanName)
     val scanIndicator = itemView.findViewById<View>(R.id.scanIndicator)
+    var scanResult : ScanResult? = null
+    var onClickListener : ((ScanResult)->Unit)? = null
 
     fun bind(result : ScanResult){
         log.v{
             "bind ${result.device.name} : ${result.rssi} dbm : isConnectable = ${result.isConnectable}"
         }
+        scanResult = result
         scanName.text = result.scanRecord?.deviceName ?: "???"
         scanAddress.text = "${result.rssi} dbm"
         scanIndicator.visibility = if(result.isConnectable) View.VISIBLE else View.INVISIBLE
+        itemView.setOnClickListener {
+            scanResult?.let { scanResultSafe ->
+                onClickListener?.invoke(scanResultSafe)
+            }
+        }
     }
 
     companion object{
-        class Adapter(val context : Context, val list : ArrayList<ScanResult>) : RecyclerView.Adapter<ScanViewHolder>() {
+        class Adapter(val context : Context, val list : ArrayList<ScanResult>, var onItemClickListener : ((ScanResult)->Unit)? = null) : RecyclerView.Adapter<ScanViewHolder>() {
+
             val log = LogUtil("ScanViewHolder.Adapter")
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ScanViewHolder {
                 log.v{
@@ -50,6 +59,7 @@ class ScanViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
                 log.v{
                     "onBindViewHolder $position ${list[position].device.name}"
                 }
+                holder.onClickListener = onItemClickListener
                 holder.bind(list[position])
             }
         }

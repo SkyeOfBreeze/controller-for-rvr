@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <org.btelman.controller.rvr.views.BLEScanLayout
-    android:padding="16dp"
-    android:minHeight="200dp"
+    android:id="@+id/mainScanLayoutHolder"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    xmlns:android="http://schemas.android.com/apk/res/android"/>
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <ProgressBar
+        android:id="@+id/progressHorizontalScanLayout"
+        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        app:layout_constraintBottom_toBottomOf="parent" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/scanRecyclerView"
+        android:maxHeight="200dp"
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@+id/progressHorizontalScanLayout"
+        android:orientation="vertical"/>
+</org.btelman.controller.rvr.views.BLEScanLayout>

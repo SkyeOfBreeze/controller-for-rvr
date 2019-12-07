@@ -6,9 +6,12 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.OvershootInterpolator
+import android.widget.LinearLayout
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.ContentViewCallback
+import kotlinx.android.synthetic.main.ble_scan_layout.view.*
 import no.nordicsemi.android.support.v18.scanner.*
 import org.btelman.controller.rvr.utils.RVRProps
 import org.btelman.logutil.kotlin.LogUtil
@@ -18,8 +21,9 @@ import org.btelman.logutil.kotlin.LogUtil
  */
 class BLEScanLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : RecyclerView(context, attrs, defStyleAttr) , ContentViewCallback {
+) : ConstraintLayout(context, attrs, defStyleAttr) , ContentViewCallback {
 
+    var onItemClicked : ((ScanResult)->Unit)? = null
     val log = LogUtil("BLEScanLayout")
     val listRaw = HashMap<String, Pair<Long, ScanResult>>()
     val list = ArrayList<ScanResult>()
@@ -74,7 +78,7 @@ class BLEScanLayout @JvmOverloads constructor(
             botsToRemove.forEach {
                 listRaw.remove(it)
             }
-            adapter?.notifyDataSetChanged()
+            scanRecyclerView.adapter?.notifyDataSetChanged()
         }
     }
 
@@ -82,8 +86,12 @@ class BLEScanLayout @JvmOverloads constructor(
         log.d{
             "init"
         }
-        layoutManager = LinearLayoutManager(context)
-        adapter = ScanViewHolder.Companion.Adapter(context, list)
+    }
+
+    override fun onFinishInflate() {
+        super.onFinishInflate()
+        scanRecyclerView.layoutManager = LinearLayoutManager(context)
+        scanRecyclerView.adapter = ScanViewHolder.Companion.Adapter(context, list, onItemClicked)
     }
 
     override fun animateContentOut(p0: Int, p1: Int) {
@@ -111,6 +119,7 @@ class BLEScanLayout @JvmOverloads constructor(
         log.d{
             "startScan"
         }
+        (scanRecyclerView.adapter as ScanViewHolder.Companion.Adapter).onItemClickListener = onItemClicked
         scanner.startScan(filters, settings, scanCallback)
     }
 
@@ -120,7 +129,7 @@ class BLEScanLayout @JvmOverloads constructor(
         }
         list.clear()
         listRaw.clear()
-        adapter?.notifyDataSetChanged()
+        scanRecyclerView.adapter?.notifyDataSetChanged()
         scanner.stopScan(scanCallback)
     }
 }
