@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<org.btelman.controller.rvr.views.BLEScanLayout
+    android:padding="16dp"
+    android:minHeight="200dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:android="http://schemas.android.com/apk/res/android"/>
