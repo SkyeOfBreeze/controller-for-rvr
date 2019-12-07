@@ -15,7 +15,6 @@ class BLEScanSnackBarThing(
     parent: ViewGroup,
     val bleLayout: BLEScanLayout
 ) : BaseTransientBottomBar<BLEScanSnackBarThing>(parent, bleLayout, bleLayout) {
-
     var onItemClickedListener : ((ScanResult)->Unit)? = null
 
     override fun show() {
