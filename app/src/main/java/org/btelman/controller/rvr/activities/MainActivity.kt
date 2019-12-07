@@ -1,6 +1,7 @@
 package org.btelman.controller.rvr.activities
 
 import android.Manifest
+import android.bluetooth.BluetoothDevice
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -112,11 +113,20 @@ class MainActivity : AppCompatActivity() {
         }
         if(bleLayout?.isShown != true) {
             bleLayout?.onItemClickedListener = {
+                connectToDevice(it.device)
                 log.d { it.toString() }
                 hideScanLayout()
             }
             bleLayout?.show()
         }
+    }
+
+    private fun disconnectFromDevice(){
+
+    }
+
+    private fun connectToDevice(device: BluetoothDevice) {
+
     }
 
     fun hideScanLayout(){
