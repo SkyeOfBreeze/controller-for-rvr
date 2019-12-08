@@ -1,6 +1,7 @@
 package org.btelman.controller.rvr.activities
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -19,12 +20,12 @@ import org.btelman.logutil.kotlin.LogUtil
 import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
-import android.database.Observable
 import android.os.Handler
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.android.synthetic.main.content_main.*
 import org.btelman.controller.rvr.RVRViewModel
+import org.btelman.controller.rvr.utils.SpheroMotors
 
 
 class MainActivity : AppCompatActivity() {
@@ -133,7 +134,7 @@ class MainActivity : AppCompatActivity() {
                 hideScanLayout()
                 handler.postDelayed({
                     connectToDevice(it.device)
-                }, 500)
+                }, 2000)
             }
             bleLayout?.show()
         }
@@ -144,6 +145,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
+        log.d { "connectToDevice" }
         viewModelRVR.connect(device)
     }
 
@@ -169,5 +171,79 @@ class MainActivity : AppCompatActivity() {
             R.id.action_settings -> true
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    /**
+     * Get the motor drive array for either USB or BLE
+     * @param  updateUI if we should update the UI
+     * @return a bytearray packet that is readable by the Sphero RVR
+     */
+    private fun getDriveArray(updateUI: Boolean): ByteArray {
+        val left = parseMotor(100)
+        val leftMode = left[1]
+        val leftSpeed = left[0]
+
+        val right = parseMotor(100)
+        val rightMode = right[1]
+        val rightSpeed = right[0]
+        return SpheroMotors.drive(leftMode, leftSpeed, rightMode, rightSpeed)
+    }
+
+
+    private fun parseMotor(speed: Int): IntArray {
+        var speed = speed
+        val result = intArrayOf(speed, 0x0)
+        var direction: Int
+        if (speed > 256) {
+            //forward
+            speed = speed - 257 //negate value some
+            direction = 0x1
+        } else if (speed < 256) {
+            //reverse
+            speed = 256 - speed //inverse the speed
+            direction = 0x2
+        } else {
+            //stop
+            speed = 0
+            direction = 0x0
+        }
+
+        if (speed > 255 || speed <= 0) {
+            speed = 0
+            direction = 0x0
+        }
+
+        result[0] = speed
+        result[1] = direction
+        return result
+    }
+
+    fun onCommand(command: String) {
+        val speed = parseMotor(100)
+        var leftMode = 0x0
+        var rightMode = 0x0
+        val leftSpeed = speed[0]
+        val rightSpeed = speed[0]
+        when (command.replace("\r\n", "")) {
+            "f" -> {
+                leftMode = 0x1
+                rightMode = 0x1
+            }
+            "b" -> {
+                leftMode = 0x2
+                rightMode = 0x2
+            }
+            "r" -> {
+                leftMode = 0x1
+                rightMode = 0x2
+            }
+            "l" -> {
+                leftMode = 0x2
+                rightMode = 0x1
+            }
+        }
+        val commandByteArray = SpheroMotors.drive(leftMode, leftSpeed, rightMode, rightSpeed)
+
+        viewModelRVR.sendCommand(commandByteArray)
     }
 }

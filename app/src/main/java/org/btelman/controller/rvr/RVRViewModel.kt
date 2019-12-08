@@ -12,8 +12,8 @@ import org.btelman.logutil.kotlin.LogUtil
  * Created by Brendon on 12/7/2019.
  */
 class RVRViewModel(application: Application) : AndroidViewModel(application), RVRManagerCallbacks {
-    var manager : RVRManager? = null
-    var logUtil = LogUtil("RVRViewModel")
+    private var manager : RVRManager? = null
+    private var logUtil = LogUtil("RVRViewModel")
 
     val connected: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
@@ -39,7 +39,11 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
                 it.setGattCallbacks(this)
             }
         }
-        manager?.connect(bluetoothDevice)?.retry(3, 100)?.enqueue()
+        manager?.connect(bluetoothDevice)?.useAutoConnect(true)?.retry(3, 2000)?.enqueue()
+    }
+
+    fun sendCommand(command : ByteArray){
+        manager?.send(command)
     }
 
     fun disconnect(){
