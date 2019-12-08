@@ -2,6 +2,8 @@ package org.btelman.controller.rvr.utils
 
 import kotlin.experimental.and
 import kotlin.experimental.xor
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Created by Brendon on 10/23/2019.
@@ -21,6 +23,17 @@ object SpheroMotors {
         (-87).toByte(),
         (-40).toByte()
     )
+
+    /**
+     * Assumes range of -1.0 to 1.0. using anything outside this may break things
+     */
+    fun drive(leftSpeed : Float, rightSpeed : Float) : ByteArray{
+        val adjustedLeft = abs(leftSpeed*255f)
+        val adjustedRight = abs(rightSpeed*255f)
+        val leftMode = if(leftSpeed > 0) 0x1 else if(leftSpeed < 0) 0x2 else 0x00
+        val rightMode = if(rightSpeed > 0) 0x1 else if(rightSpeed < 0) 0x2 else 0x00
+        return drive(leftMode, adjustedLeft.roundToInt(), rightMode, adjustedRight.roundToInt())
+    }
 
     fun drive(leftMode: Int, leftSpeed: Int, rightMode: Int, rightSpeed: Int): ByteArray {
         driveCommand[5]++

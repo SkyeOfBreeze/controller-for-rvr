@@ -21,6 +21,8 @@ import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
 import android.os.Handler
+import android.view.InputDevice
+import android.view.MotionEvent
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.android.synthetic.main.content_main.*
@@ -173,57 +175,66 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Get the motor drive array for either USB or BLE
-     * @param  updateUI if we should update the UI
-     * @return a bytearray packet that is readable by the Sphero RVR
-     */
-    private fun getDriveArray(updateUI: Boolean): ByteArray {
-        val left = parseMotor(100)
-        val leftMode = left[1]
-        val leftSpeed = left[0]
-
-        val right = parseMotor(100)
-        val rightMode = right[1]
-        val rightSpeed = right[0]
-        return SpheroMotors.drive(leftMode, leftSpeed, rightMode, rightSpeed)
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        // Check that the event came from a game controller
+        if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK && event.action == MotionEvent.ACTION_MOVE) {
+            processJoystickInput(event, -1)
+            return true
+        }
+        return super.onGenericMotionEvent(event)
     }
 
+    private fun getCenteredAxis(
+        event: MotionEvent,
+        device: InputDevice, axis: Int, historyPos: Int
+    ): Float {
+        val range = device.getMotionRange(axis, event.source)
 
-    private fun parseMotor(speed: Int): IntArray {
-        var speed = speed
-        val result = intArrayOf(speed, 0x0)
-        var direction: Int
-        if (speed > 256) {
-            //forward
-            speed = speed - 257 //negate value some
-            direction = 0x1
-        } else if (speed < 256) {
-            //reverse
-            speed = 256 - speed //inverse the speed
-            direction = 0x2
-        } else {
-            //stop
-            speed = 0
-            direction = 0x0
+        // A joystick at rest does not always report an absolute position of
+        // (0,0). Use the getFlat() method to determine the range of values
+        // bounding the joystick axis center.
+        if (range != null) {
+            val flat = range.flat
+            val value = if (historyPos < 0)
+                event.getAxisValue(axis)
+            else
+                event.getHistoricalAxisValue(axis, historyPos)
+
+            // Ignore axis values that are within the 'flat' region of the
+            // joystick axis center.
+            if (Math.abs(value) > flat) {
+                return value
+            }
         }
-
-        if (speed > 255 || speed <= 0) {
-            speed = 0
-            direction = 0x0
-        }
-
-        result[0] = speed
-        result[1] = direction
-        return result
+        return 0f
     }
 
-    fun onCommand(command: String) {
-        val speed = parseMotor(100)
+    private fun processJoystickInput(
+        event: MotionEvent,
+        historyPos: Int
+    ) {
+
+        val mInputDevice = event.device
+
+        // Calculate the vertical distance to move by
+        // using the input value from one of these physical controls:
+        // the left control stick, hat switch, or the right control stick.
+        val left = -getCenteredAxis(
+            event, mInputDevice,
+            MotionEvent.AXIS_Y, historyPos
+        )
+        val right = -getCenteredAxis(
+            event, mInputDevice,
+            MotionEvent.AXIS_RZ, historyPos
+        )
+        val command = SpheroMotors.drive(left, right)
+        viewModelRVR.sendCommand(command)
+    }
+
+    /* TODO fun onCommand(command: String) {
+        val speed = .5f
         var leftMode = 0x0
         var rightMode = 0x0
-        val leftSpeed = speed[0]
-        val rightSpeed = speed[0]
         when (command.replace("\r\n", "")) {
             "f" -> {
                 leftMode = 0x1
@@ -243,7 +254,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
         val commandByteArray = SpheroMotors.drive(leftMode, leftSpeed, rightMode, rightSpeed)
-
         viewModelRVR.sendCommand(commandByteArray)
-    }
+    } */
 }
