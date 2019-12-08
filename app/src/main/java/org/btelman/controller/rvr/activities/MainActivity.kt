@@ -19,19 +19,35 @@ import org.btelman.logutil.kotlin.LogUtil
 import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
+import android.database.Observable
+import android.os.Handler
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProviders
+import kotlinx.android.synthetic.main.content_main.*
+import org.btelman.controller.rvr.RVRViewModel
 
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var viewModelRVR: RVRViewModel
+    private lateinit var handler : Handler
     private var allowPermissionClickedTime = 0L
     private val PERM_REQUEST_LOCATION = 234
     private var bleLayout: BLEScanSnackBarThing? = null
+
     val log = LogUtil("MainActivity")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
-
+        handler = Handler()
+        viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
+        viewModelRVR.connected.observe(this, Observer<Boolean> {
+            jelloWorldTextView.text = if(it) "connected" else "disconnected"
+        })
+        jelloWorldTextView.setOnClickListener {
+            disconnectFromDevice()
+        }
         fab.setOnClickListener { view ->
             if(bleLayout?.isShown != true){
                 val ready = checkPerms()
@@ -113,24 +129,25 @@ class MainActivity : AppCompatActivity() {
         }
         if(bleLayout?.isShown != true) {
             bleLayout?.onItemClickedListener = {
-                connectToDevice(it.device)
                 log.d { it.toString() }
                 hideScanLayout()
+                handler.postDelayed({
+                    connectToDevice(it.device)
+                }, 500)
             }
             bleLayout?.show()
         }
     }
 
     private fun disconnectFromDevice(){
-
+        viewModelRVR.disconnect()
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
-
+        viewModelRVR.connect(device)
     }
 
     fun hideScanLayout(){
-
         fab.setImageResource(android.R.drawable.stat_sys_data_bluetooth)
         if(bleLayout?.isShown == true) {
             bleLayout?.dismiss()

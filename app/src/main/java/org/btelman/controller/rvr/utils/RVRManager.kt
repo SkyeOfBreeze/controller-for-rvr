@@ -10,9 +10,9 @@ import java.util.*
  * Created by Brendon on 12/7/2019.
  */
 class RVRManager(context: Context) : BleManager<RVRManagerCallbacks>(context) {
-    val RVR_MAIN_SERVICE = UUID.fromString("00001523-1212-efde-1523-785feabcd123")
+    val RVR_MAIN_SERVICE = UUID.fromString("00002a04-0000-1000-8000-00805f9b34fb")
 
-    private val RVR_COMMS_CHAR = UUID.fromString("00001524-1212-efde-1523-785feabcd123")
+    private val RVR_COMMS_CHAR = UUID.fromString("00010002-574f-4f20-5370-6865726f2121")
 
     private var comms: BluetoothGattCharacteristic? = null
 
