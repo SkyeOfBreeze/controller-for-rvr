@@ -193,7 +193,10 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 if(!it.isEnabled)
                     it.enable()
             }
-            bleLayout?.show()
+            handler.postDelayed({
+                if(bleLayout?.isShown != true && !isFinishing)
+                    bleLayout?.show()
+            }, 500)
         }
     }
 
