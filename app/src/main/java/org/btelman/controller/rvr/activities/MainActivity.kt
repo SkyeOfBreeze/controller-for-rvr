@@ -1,6 +1,7 @@
 package org.btelman.controller.rvr.activities
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
 import android.content.pm.PackageManager
@@ -187,6 +188,10 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 handler.postDelayed({
                     connectToDevice(it.device)
                 }, 2000)
+            }
+            BluetoothAdapter.getDefaultAdapter().also {
+                if(!it.isEnabled)
+                    it.enable()
             }
             bleLayout?.show()
         }
