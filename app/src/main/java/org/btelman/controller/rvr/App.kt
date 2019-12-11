@@ -10,6 +10,6 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         LogUtil.default = LogUtilInstance("RVRCONTROL")
-        LogUtil.logLevel = LogLevel.DEBUG
+        LogUtil.logLevel = if(BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.ERROR
     }
 }

@@ -7,6 +7,15 @@ apply plugin: 'kotlin-android-extensions'
 android {
     compileSdkVersion 28
 
+    signingConfigs {
+        release {
+            storeFile file("../deploy.jks")
+            storePassword System.getenv("KEY_PASS_RELEASE")
+            keyAlias System.getenv("KEY_ALIAS_RELEASE")
+            keyPassword System.getenv("KEY_PASS_RELEASE")
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -21,11 +30,15 @@ android {
         minSdkVersion 18
         targetSdkVersion 28
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
+            if(System.getenv("KEY_ALIAS_RELEASE")){
+                signingConfig signingConfigs.release
+            }
+
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
