@@ -1,0 +1,5 @@
+Note about data collection:
+
+- This app does not use any data collection or sharing services, and will not display ads.
+
+- Location permission is requested to only use bluetooth on platforms that require it, but location data is not shared or collected.
