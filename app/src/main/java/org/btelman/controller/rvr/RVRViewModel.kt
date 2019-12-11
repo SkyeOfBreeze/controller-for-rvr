@@ -101,6 +101,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
         logUtil.d{
             "onLinkLossOccurred ${device.address}"
         }
+        connected.postValue(false)
     }
 
     override fun onDeviceNotSupported(device: BluetoothDevice) {
