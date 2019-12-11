@@ -1,7 +1,6 @@
 package org.btelman.controller.rvr.activities
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -27,10 +26,15 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.android.synthetic.main.content_main.*
 import org.btelman.controller.rvr.RVRViewModel
+import org.btelman.controller.rvr.utils.DriveUtil
 import org.btelman.controller.rvr.utils.SpheroMotors
+import kotlin.math.roundToInt
 
 
 class MainActivity : AppCompatActivity() {
+    private val maxSpeed = 1.0f
+    private var right = 0.0f
+    private var left = 0.0f
     private lateinit var viewModelRVR: RVRViewModel
     private lateinit var handler : Handler
     private var allowPermissionClickedTime = 0L
@@ -63,6 +67,19 @@ class MainActivity : AppCompatActivity() {
                 hideScanLayout()
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        right = 0.0f
+        left = 0.0f
+        scheduleNewMotorLooper()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        hideScanLayout()
+        handler.removeCallbacks(motorLooper)
     }
 
     private fun showPermissionsRationale() {
@@ -120,11 +137,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        hideScanLayout()
-    }
-
     fun showScanLayout() {
         fab.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
         bleLayout ?: let {
@@ -149,6 +161,18 @@ class MainActivity : AppCompatActivity() {
     private fun connectToDevice(device: BluetoothDevice) {
         log.d { "connectToDevice" }
         viewModelRVR.connect(device)
+    }
+
+    val motorLooper = {
+        if(viewModelRVR.connected.value == true){
+            val command = SpheroMotors.drive(left, right)
+            viewModelRVR.sendCommand(command)
+        }
+        scheduleNewMotorLooper()
+    }
+
+    private fun scheduleNewMotorLooper() {
+        handler.postDelayed(motorLooper, 45)
     }
 
     fun hideScanLayout(){
@@ -219,20 +243,22 @@ class MainActivity : AppCompatActivity() {
         // Calculate the vertical distance to move by
         // using the input value from one of these physical controls:
         // the left control stick, hat switch, or the right control stick.
-        val left = -getCenteredAxis(
+        val linearSpeed = -getCenteredAxis(
             event, mInputDevice,
             MotionEvent.AXIS_Y, historyPos
         )
-        val right = -getCenteredAxis(
+        val rotateSpeed = -getCenteredAxis(
             event, mInputDevice,
-            MotionEvent.AXIS_RZ, historyPos
+            MotionEvent.AXIS_Z, historyPos
         )
-        val command = SpheroMotors.drive(left, right)
-        viewModelRVR.sendCommand(command)
+        DriveUtil.rcDrive(linearSpeed, rotateSpeed, true).also {
+            left = it.first*maxSpeed
+            right = it.second*maxSpeed
+        }
     }
 
-    /* TODO fun onCommand(command: String) {
-        val speed = .5f
+    fun onCommand(command: String) {
+        val speed = (maxSpeed*255.0f).roundToInt()
         var leftMode = 0x0
         var rightMode = 0x0
         when (command.replace("\r\n", "")) {
@@ -253,7 +279,7 @@ class MainActivity : AppCompatActivity() {
                 rightMode = 0x1
             }
         }
-        val commandByteArray = SpheroMotors.drive(leftMode, leftSpeed, rightMode, rightSpeed)
+        val commandByteArray = SpheroMotors.drive(leftMode, speed, rightMode, speed)
         viewModelRVR.sendCommand(commandByteArray)
-    } */
+    }
 }
