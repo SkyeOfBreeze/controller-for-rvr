@@ -21,6 +21,7 @@ import org.btelman.logutil.kotlin.LogUtil
 import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -131,10 +132,13 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     }
 
     private fun checkPerms() : Boolean{
-        return !(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED)
+        if (Build.VERSION.SDK_INT >= 23) {
+            return (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED)
+        }
+        else return true
     }
 
     fun requestPerms(){
