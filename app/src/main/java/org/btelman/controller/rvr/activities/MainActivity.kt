@@ -2,6 +2,7 @@ package org.btelman.controller.rvr.activities
 
 import android.Manifest
 import android.bluetooth.BluetoothDevice
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -22,17 +23,19 @@ import android.content.Intent
 import android.os.Handler
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.widget.SeekBar
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.android.synthetic.main.content_main.*
 import org.btelman.controller.rvr.RVRViewModel
 import org.btelman.controller.rvr.utils.DriveUtil
+import org.btelman.controller.rvr.utils.RemoReceiver
 import org.btelman.controller.rvr.utils.SpheroMotors
 import kotlin.math.roundToInt
 
-
-class MainActivity : AppCompatActivity() {
-    private val maxSpeed = 1.0f
+class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
+    private var maxSpeed = 1.0f
+    private var maxTurnSpeed = 1.0f
     private var right = 0.0f
     private var left = 0.0f
     private lateinit var viewModelRVR: RVRViewModel
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private var allowPermissionClickedTime = 0L
     private val PERM_REQUEST_LOCATION = 234
     private var bleLayout: BLEScanSnackBarThing? = null
+    private lateinit var remoInterface : RemoReceiver
 
     val log = LogUtil("MainActivity")
 
@@ -47,12 +51,41 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
+        maxSpeed = getSharedPreferences("RVR", Context.MODE_PRIVATE).getFloat("maxSpeed", .7f).also {
+            linearSpeedMaxValue.progress = (it*100.0f).roundToInt()
+        }
+        maxTurnSpeed = getSharedPreferences("RVR", Context.MODE_PRIVATE).getFloat("maxTurnSpeed", .7f).also {
+            rotationSpeedMaxValue.progress = (it*100.0f).roundToInt()
+        }
         handler = Handler()
         viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
         viewModelRVR.connected.observe(this, Observer<Boolean> {
-            jelloWorldTextView.text = if(it) "connected" else "disconnected"
+            connectionStatusView.text = if(it) "connected" else "disconnected"
         })
-        jelloWorldTextView.setOnClickListener {
+        linearSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                maxSpeed = progress/100.0f
+                getSharedPreferences("RVR", Context.MODE_PRIVATE).edit().putFloat("maxSpeed", maxSpeed).apply()
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        rotationSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                maxTurnSpeed = progress/100.0f
+                getSharedPreferences("RVR", Context.MODE_PRIVATE).edit().putFloat("maxTurnSpeed", maxTurnSpeed).apply()
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        remoInterface = RemoReceiver(this, this)
+        remoInterface.register()
+
+        connectionStatusView.setOnClickListener {
             disconnectFromDevice()
         }
         fab.setOnClickListener { view ->
@@ -80,6 +113,11 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         hideScanLayout()
         handler.removeCallbacks(motorLooper)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        remoInterface.unregister()
     }
 
     private fun showPermissionsRationale() {
@@ -161,11 +199,22 @@ class MainActivity : AppCompatActivity() {
     private fun connectToDevice(device: BluetoothDevice) {
         log.d { "connectToDevice" }
         viewModelRVR.connect(device)
+        connectionStatusView.text = "connecting..."
     }
 
-    val motorLooper = {
+    private val motorLooper = {
         if(viewModelRVR.connected.value == true){
-            val command = SpheroMotors.drive(left, right)
+            val axes = joystickSurfaceView.joystickAxes
+            val command : ByteArray
+            if(axes[0] != 0.0f || axes[1] != 0.0f){
+                DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
+                    val left = it.first
+                    val right = it.second
+                    command = SpheroMotors.drive(left, right)
+                }
+            } else{
+                command = SpheroMotors.drive(left, right)
+            }
             viewModelRVR.sendCommand(command)
         }
         scheduleNewMotorLooper()
@@ -251,35 +300,40 @@ class MainActivity : AppCompatActivity() {
             event, mInputDevice,
             MotionEvent.AXIS_Z, historyPos
         )
-        DriveUtil.rcDrive(linearSpeed, rotateSpeed, true).also {
-            left = it.first*maxSpeed
-            right = it.second*maxSpeed
+        DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
+            left = it.first
+            right = it.second
         }
     }
 
-    fun onCommand(command: String) {
-        val speed = (maxSpeed*255.0f).roundToInt()
-        var leftMode = 0x0
-        var rightMode = 0x0
+    override fun onCommand(command: String) {
+        var linearSpeed : Float
+        var rotateSpeed : Float
         when (command.replace("\r\n", "")) {
             "f" -> {
-                leftMode = 0x1
-                rightMode = 0x1
+                linearSpeed = 1f
+                rotateSpeed = 0f
             }
             "b" -> {
-                leftMode = 0x2
-                rightMode = 0x2
+                linearSpeed = -1f
+                rotateSpeed = 0f
             }
             "r" -> {
-                leftMode = 0x1
-                rightMode = 0x2
+                linearSpeed = 0f
+                rotateSpeed = -1f
             }
             "l" -> {
-                leftMode = 0x2
-                rightMode = 0x1
+                linearSpeed = 0f
+                rotateSpeed = 1f
+            }
+            else -> {
+                linearSpeed = 0f
+                rotateSpeed = 0f
             }
         }
-        val commandByteArray = SpheroMotors.drive(leftMode, speed, rightMode, speed)
-        viewModelRVR.sendCommand(commandByteArray)
+        DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
+            left = it.first
+            right = it.second
+        }
     }
 }
