@@ -198,6 +198,10 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                     it.enable()
             }
             handler.postDelayed({
+                if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
+                    Toast.makeText(this, "Please ensure bluetooth is on and try again", Toast.LENGTH_SHORT).show()
+                    return@postDelayed
+                }
                 if(bleLayout?.isShown != true && !isFinishing)
                     bleLayout?.show()
             }, 500)
@@ -217,7 +221,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private val motorLooper = {
         if(viewModelRVR.connected.value == true){
             val axes = joystickSurfaceView.joystickAxes
-            val command : ByteArray
+            var command : ByteArray
             if(axes[0] != 0.0f || axes[1] != 0.0f){
                 DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
                     val left = it.first
