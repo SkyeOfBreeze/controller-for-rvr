@@ -16,3 +16,7 @@ This app can be compiled from source here, and is licensed under Apache License 
 This app does not transmit any data outside of the app, other than to communicate with the robot.
 
 This app was made for the Sphero RVR, which was made by Sphero. Sphero is not overseeing, involved with, or responsible for this activity, product, or service.
+
+
+Privacy Policy:
+(https://btelman.org/privacy/controller-for-rvr.html)[https://btelman.org/privacy/controller-for-rvr.html]

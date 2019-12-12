@@ -7,8 +7,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -22,10 +20,10 @@ import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
 import android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
-import android.view.InputDevice
-import android.view.MotionEvent
+import android.view.*
 import android.widget.SeekBar
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
@@ -121,6 +119,22 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         super.onPause()
         hideScanLayout()
         handler?.removeCallbacks(motorLooper)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
+        when(item?.itemId){
+            R.id.action_privacy -> {
+                startActivity(Intent(Intent.ACTION_VIEW).also {
+                    it.data = Uri.parse("https://btelman.org/privacy/controller-for-rvr.html")
+                })
+            }
+        }
+        return super.onOptionsItemSelected(item)
     }
 
     override fun onDestroy() {
