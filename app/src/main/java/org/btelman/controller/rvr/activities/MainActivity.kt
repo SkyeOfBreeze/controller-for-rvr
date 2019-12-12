@@ -21,6 +21,7 @@ import org.btelman.logutil.kotlin.LogUtil
 import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
+import android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE
 import android.os.Build
 import android.os.Handler
 import android.view.InputDevice
@@ -40,8 +41,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private var maxTurnSpeed = 1.0f
     private var right = 0.0f
     private var left = 0.0f
-    private lateinit var viewModelRVR: RVRViewModel
-    private lateinit var handler : Handler
+    private var viewModelRVR: RVRViewModel? = null
+    private var handler : Handler? = null
     private var allowPermissionClickedTime = 0L
     private val PERM_REQUEST_LOCATION = 234
     private var bleLayout: BLEScanSnackBarThing? = null
@@ -53,6 +54,11 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
+        if(!packageManager.hasSystemFeature(FEATURE_BLUETOOTH_LE)){
+            connectionStatusView.text = "Device does not support required bluetooth mode"
+            log.e { "Device does not support Bluetooth LE" }
+            return
+        }
         maxSpeed = getSharedPreferences("RVR", Context.MODE_PRIVATE).getFloat("maxSpeed", .7f).also {
             linearSpeedMaxValue.progress = (it*100.0f).roundToInt()
         }
@@ -61,7 +67,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         }
         handler = Handler()
         viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
-        viewModelRVR.connected.observe(this, Observer<Boolean> {
+        viewModelRVR!!.connected.observe(this, Observer<Boolean> {
             connectionStatusView.text = if(it) "connected" else "disconnected"
         })
         linearSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
@@ -114,7 +120,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     override fun onPause() {
         super.onPause()
         hideScanLayout()
-        handler.removeCallbacks(motorLooper)
+        handler?.removeCallbacks(motorLooper)
     }
 
     override fun onDestroy() {
@@ -189,7 +195,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             bleLayout?.onItemClickedListener = {
                 log.d { it.toString() }
                 hideScanLayout()
-                handler.postDelayed({
+                handler?.postDelayed({
                     connectToDevice(it.device)
                 }, 2000)
             }
@@ -197,7 +203,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 if(!it.isEnabled)
                     it.enable()
             }
-            handler.postDelayed({
+            handler?.postDelayed({
                 if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
                     Toast.makeText(this, "Please ensure bluetooth is on and try again", Toast.LENGTH_SHORT).show()
                     return@postDelayed
@@ -209,35 +215,37 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     }
 
     private fun disconnectFromDevice(){
-        viewModelRVR.disconnect()
+        viewModelRVR?.disconnect()
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
         log.d { "connectToDevice" }
-        viewModelRVR.connect(device)
+        viewModelRVR?.connect(device)
         connectionStatusView.text = "connecting..."
     }
 
-    private val motorLooper = {
-        if(viewModelRVR.connected.value == true){
-            val axes = joystickSurfaceView.joystickAxes
-            var command : ByteArray
-            if(axes[0] != 0.0f || axes[1] != 0.0f){
-                DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
-                    val left = it.first
-                    val right = it.second
+    private val motorLooper = Runnable {
+        viewModelRVR?.let { viewModel->
+            if(viewModel.connected.value == true){
+                val axes = joystickSurfaceView.joystickAxes
+                var command : ByteArray
+                if(axes[0] != 0.0f || axes[1] != 0.0f){
+                    DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
+                        val left = it.first
+                        val right = it.second
+                        command = SpheroMotors.drive(left, right)
+                    }
+                } else{
                     command = SpheroMotors.drive(left, right)
                 }
-            } else{
-                command = SpheroMotors.drive(left, right)
+                viewModel.sendCommand(command)
             }
-            viewModelRVR.sendCommand(command)
+            scheduleNewMotorLooper()
         }
-        scheduleNewMotorLooper()
     }
 
     private fun scheduleNewMotorLooper() {
-        handler.postDelayed(motorLooper, 45)
+        handler?.postDelayed(motorLooper, 45)
     }
 
     fun hideScanLayout(){
