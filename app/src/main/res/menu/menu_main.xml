@@ -7,4 +7,12 @@
         android:orderInCategory="100"
         android:title="@string/action_privacy"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/action_keep_screen_on"
+        android:checkable="true"
+        android:checked="false"
+        android:orderInCategory="90"
+        android:title="@string/action_screen_keep_on"
+        app:showAsAction="never"
+        />
 </menu>

@@ -19,6 +19,7 @@ import org.btelman.logutil.kotlin.LogUtil
 import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE
 import android.net.Uri
 import android.os.Build
@@ -35,16 +36,49 @@ import org.btelman.controller.rvr.utils.SpheroMotors
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
-    private var maxSpeed = 1.0f
-    private var maxTurnSpeed = 1.0f
     private var right = 0.0f
     private var left = 0.0f
     private var viewModelRVR: RVRViewModel? = null
     private var handler : Handler? = null
     private var allowPermissionClickedTime = 0L
-    private val PERM_REQUEST_LOCATION = 234
     private var bleLayout: BLEScanSnackBarThing? = null
     private lateinit var remoInterface : RemoReceiver
+
+    private lateinit var sharedPrefs : SharedPreferences
+
+    private var keepScreenAwake : Boolean
+        get() {
+            return sharedPrefs.getBoolean("keepScreenAwake", false)
+        }
+        set(value) {
+            sharedPrefs.edit().putBoolean("keepScreenAwake", value).apply()
+        }
+
+    private var _maxSpeed : Float? = null
+    private var maxSpeed : Float
+        get() {
+            _maxSpeed?: run {
+                _maxSpeed = sharedPrefs.getFloat("maxSpeed", .7f)
+            }
+            return _maxSpeed!!
+        }
+        set(value) {
+            _maxSpeed = value
+            sharedPrefs.edit().putFloat("maxSpeed", value).apply()
+        }
+
+    private var _maxTurnSpeed : Float? = null
+    private var maxTurnSpeed : Float
+        get() {
+            _maxTurnSpeed?: run {
+                _maxTurnSpeed = sharedPrefs.getFloat("maxTurnSpeed", .7f)
+            }
+            return _maxTurnSpeed!!
+        }
+        set(value) {
+            _maxTurnSpeed = value
+            sharedPrefs.edit().putFloat("maxTurnSpeed", value).apply()
+        }
 
     val log = LogUtil("MainActivity")
 
@@ -52,26 +86,23 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
+        sharedPrefs = getSharedPreferences("RVR", Context.MODE_PRIVATE)
         if(!packageManager.hasSystemFeature(FEATURE_BLUETOOTH_LE)){
             connectionStatusView.text = "Device does not support required bluetooth mode"
             log.e { "Device does not support Bluetooth LE" }
             return
         }
-        maxSpeed = getSharedPreferences("RVR", Context.MODE_PRIVATE).getFloat("maxSpeed", .7f).also {
-            linearSpeedMaxValue.progress = (it*100.0f).roundToInt()
-        }
-        maxTurnSpeed = getSharedPreferences("RVR", Context.MODE_PRIVATE).getFloat("maxTurnSpeed", .7f).also {
-            rotationSpeedMaxValue.progress = (it*100.0f).roundToInt()
-        }
+        linearSpeedMaxValue.progress = (maxSpeed*100.0f).roundToInt()
+        rotationSpeedMaxValue.progress = (maxTurnSpeed*100.0f).roundToInt()
         handler = Handler()
         viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
         viewModelRVR!!.connected.observe(this, Observer<Boolean> {
             connectionStatusView.text = if(it) "connected" else "disconnected"
+            mainCoordinatorLayout.keepScreenOn = if(it) keepScreenAwake else false
         })
         linearSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 maxSpeed = progress/100.0f
-                getSharedPreferences("RVR", Context.MODE_PRIVATE).edit().putFloat("maxSpeed", maxSpeed).apply()
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -81,7 +112,6 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         rotationSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 maxTurnSpeed = progress/100.0f
-                getSharedPreferences("RVR", Context.MODE_PRIVATE).edit().putFloat("maxTurnSpeed", maxTurnSpeed).apply()
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -123,7 +153,9 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
-        return super.onCreateOptionsMenu(menu)
+        return super.onCreateOptionsMenu(menu).also {
+            menu?.findItem(R.id.action_keep_screen_on)?.isChecked = keepScreenAwake
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem?): Boolean {
@@ -132,6 +164,12 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 startActivity(Intent(Intent.ACTION_VIEW).also {
                     it.data = Uri.parse("https://btelman.org/privacy/controller-for-rvr.html")
                 })
+            }
+            R.id.action_keep_screen_on -> {
+                val checked = !item.isChecked
+                item.isChecked = checked
+                keepScreenAwake = checked
+                mainCoordinatorLayout.keepScreenOn = checked
             }
         }
         return super.onOptionsItemSelected(item)
@@ -164,7 +202,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     fun requestPerms(){
         ActivityCompat.requestPermissions(this,
             arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
-            PERM_REQUEST_LOCATION)
+            PERM_REQUEST_LOCATION
+        )
     }
 
     override fun onRequestPermissionsResult(requestCode: Int,
@@ -333,8 +372,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     }
 
     override fun onCommand(command: String) {
-        var linearSpeed : Float
-        var rotateSpeed : Float
+        val linearSpeed : Float
+        val rotateSpeed : Float
         when (command.replace("\r\n", "")) {
             "f" -> {
                 linearSpeed = 1f
@@ -362,5 +401,9 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             right = it.second
         }
         sendMotorCommandFrame()
+    }
+
+    companion object {
+        private const val PERM_REQUEST_LOCATION = 234
     }
 }
