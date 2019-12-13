@@ -239,6 +239,11 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     }
 
     private val motorLooper = Runnable {
+        sendMotorCommandFrame()
+        scheduleNewMotorLooper()
+    }
+
+    private fun sendMotorCommandFrame() {
         viewModelRVR?.let { viewModel->
             if(viewModel.connected.value == true){
                 val axes = joystickSurfaceView.joystickAxes
@@ -254,7 +259,6 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 }
                 viewModel.sendCommand(command)
             }
-            scheduleNewMotorLooper()
         }
     }
 
@@ -357,5 +361,6 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             left = it.first
             right = it.second
         }
+        sendMotorCommandFrame()
     }
 }
