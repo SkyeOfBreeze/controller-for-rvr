@@ -126,6 +126,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         }
         fab.setOnClickListener { view ->
             if(bleLayout?.isShown != true){
+                disconnectFromDevice()
                 val ready = checkPerms()
                 if(ready)
                     showScanLayout()
@@ -169,7 +170,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 val checked = !item.isChecked
                 item.isChecked = checked
                 keepScreenAwake = checked
-                mainCoordinatorLayout.keepScreenOn = checked
+                if(viewModelRVR?.connected?.value == true)
+                    mainCoordinatorLayout.keepScreenOn = checked
             }
         }
         return super.onOptionsItemSelected(item)
@@ -178,6 +180,13 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     override fun onDestroy() {
         super.onDestroy()
         remoInterface.unregister()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
+            showScanLayout()
+        }
     }
 
     private fun showPermissionsRationale() {
@@ -240,7 +249,6 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     }
 
     fun showScanLayout() {
-        fab.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
         bleLayout ?: let {
             bleLayout = BLEScanSnackBarThing.make(mainCoordinatorLayout)
         }
@@ -252,18 +260,17 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                     connectToDevice(it.device)
                 }, 2000)
             }
-            BluetoothAdapter.getDefaultAdapter().also {
-                if(!it.isEnabled)
-                    it.enable()
+            if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
+                Snackbar.make(mainCoordinatorLayout, "Bluetooth needs to be enabled", Snackbar.LENGTH_INDEFINITE)
+                    .setAction("Turn on"){
+                        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                        startActivityForResult(enableBtIntent, REQUEST_ENABLE_BLUETOOTH)
+                    }.show()
+                return
             }
-            handler?.postDelayed({
-                if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
-                    Toast.makeText(this, "Please ensure bluetooth is on and try again", Toast.LENGTH_SHORT).show()
-                    return@postDelayed
-                }
-                if(bleLayout?.isShown != true && !isFinishing)
-                    bleLayout?.show()
-            }, 500)
+            fab.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            if(bleLayout?.isShown != true && !isFinishing)
+                bleLayout?.show()
         }
     }
 
@@ -273,8 +280,9 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     private fun connectToDevice(device: BluetoothDevice) {
         log.d { "connectToDevice" }
-        viewModelRVR?.connect(device)
+        disconnectFromDevice()
         connectionStatusView.text = "connecting..."
+        viewModelRVR?.connect(device)
     }
 
     private val motorLooper = Runnable {
@@ -405,5 +413,6 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     companion object {
         private const val PERM_REQUEST_LOCATION = 234
+        private const val REQUEST_ENABLE_BLUETOOTH = 2221
     }
 }
