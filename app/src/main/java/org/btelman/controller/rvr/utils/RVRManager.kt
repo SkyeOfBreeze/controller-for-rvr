@@ -1,87 +1,44 @@
 package org.btelman.controller.rvr.utils
 
 import android.bluetooth.BluetoothDevice
-import android.content.Context
-import no.nordicsemi.android.ble.BleManager
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGatt
-import no.nordicsemi.android.ble.callback.DataReceivedCallback
-import no.nordicsemi.android.ble.data.Data
+import android.content.Context
+import org.btelman.controller.rvr.drivers.bluetooth.BluetoothBuilder
+import org.btelman.controller.rvr.drivers.bluetooth.Connection
+import org.btelman.controller.rvr.drivers.bluetooth.le.BluetoothGattInterface
 import org.btelman.logutil.kotlin.LogUtil
 import java.util.*
 
 /**
  * Created by Brendon on 12/7/2019.
  */
-class RVRManager(context: Context) : BleManager<RVRManagerCallbacks>(context) {
+class RVRManager(context: Context, device : BluetoothDevice){
     val log = LogUtil("RVRManager")
-    val RVR_MAIN_SERVICE = UUID.fromString("00010001-574f-4f20-5370-6865726f2121")
-
+    private val RVR_MAIN_SERVICE = UUID.fromString("00010001-574f-4f20-5370-6865726f2121")
     private val RVR_COMMS_CHAR = UUID.fromString("00010002-574f-4f20-5370-6865726f2121")
 
-    private var comms: BluetoothGattCharacteristic? = null
+    val bluetooth = BluetoothBuilder(context, device, BluetoothBuilder.TYPE_GATT_LE).build() as BluetoothGattInterface
 
-    override fun getGattCallback(): BleManagerGattCallback {
-        log.d {
-            "getGattCallback"
-        }
-        return mGattCallback
+    private val onCommCharacteristicUpdate =  { characteristic: BluetoothGattCharacteristic ->
+
     }
 
-    private val mGattCallback = object : BleManagerGattCallback(), DataReceivedCallback {
-        override fun onDataReceived(device: BluetoothDevice, data: Data) {
-            log.d {
-                "onDataReceived"
-            }
-        }
-
-        override fun initialize() {
-            log.d {
-                "initialize"
-            }
-            setNotificationCallback(comms).with(this)
-            readCharacteristic(comms).with(this).enqueue()
-            enableNotifications(comms).enqueue()
-        }
-
-        override fun isRequiredServiceSupported(gatt: BluetoothGatt): Boolean {
-            log.d {
-                "isRequiredServiceSupported"
-            }
-            val service = gatt.getService(RVR_MAIN_SERVICE)
-            if (service != null) {
-                comms = service.getCharacteristic(RVR_COMMS_CHAR)
-            }
-
-            var writeRequest = false
-            comms?.let {
-                val rxProperties = it.properties
-                writeRequest = rxProperties and BluetoothGattCharacteristic.PROPERTY_WRITE > 0
-            }
-            log.d {
-                "${comms != null && writeRequest}"
-            }
-            return comms != null && writeRequest
-        }
-
-        protected override fun onDeviceDisconnected() {
-            log.d {
-                "onDeviceDisconnected"
-            }
-            comms = null
-        }
+    init {
+        bluetooth.subscribe(RVR_MAIN_SERVICE, RVR_COMMS_CHAR, onCommCharacteristicUpdate)
     }
 
-    override fun log(priority: Int, message: String) {
-        log.d {
-            "$priority $message"
-        }
+    fun connect(){
+        bluetooth.connect()
+    }
+
+    fun disconnect(){
+        bluetooth.disconnect()
     }
 
     fun send(packet : ByteArray) {
         // Are we connected?
-        if (comms == null)
+        if (bluetooth.getStatus() != Connection.STATE_CONNECTED)
             return
-        writeCharacteristic(comms, packet).enqueue()
+        bluetooth.writeBytes(RVR_MAIN_SERVICE, RVR_COMMS_CHAR, packet)
     }
 }
