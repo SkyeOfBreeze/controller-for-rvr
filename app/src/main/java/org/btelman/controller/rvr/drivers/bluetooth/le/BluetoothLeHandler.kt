@@ -6,10 +6,8 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Message
 import android.util.Log
-import org.btelman.controller.rvr.drivers.ble.DeviceScanActivity
 import org.btelman.controller.rvr.drivers.bluetooth.Connection
 import org.btelman.controller.rvr.drivers.bluetooth.classic.BluetoothClassicHandler
-import java.io.IOException
 import java.util.*
 import kotlin.collections.HashMap
 import kotlin.random.Random
