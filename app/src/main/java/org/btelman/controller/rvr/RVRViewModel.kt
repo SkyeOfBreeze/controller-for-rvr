@@ -12,8 +12,10 @@ import org.btelman.logutil.kotlin.LogUtil
  * Created by Brendon on 12/7/2019.
  */
 class RVRViewModel(application: Application) : AndroidViewModel(application), RVRManagerCallbacks {
+    private var isAutoConnect = false
     private var manager : RVRManager? = null
     private var logUtil = LogUtil("RVRViewModel")
+    private var bleDevice : BluetoothDevice? = null
 
     val connected: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
@@ -28,6 +30,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
     }
 
     fun connect(bluetoothDevice: BluetoothDevice){
+        bleDevice = bluetoothDevice
         logUtil.d{
             "connect ${bluetoothDevice.address}"
         }
@@ -39,7 +42,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
                 it.setGattCallbacks(this)
             }
         }
-        manager?.connect(bluetoothDevice)?.useAutoConnect(true)?.retry(3, 2000)?.enqueue()
+        manager?.connect(bluetoothDevice)?.retry(3, 2000)?.enqueue()
     }
 
     fun sendCommand(command : ByteArray){
@@ -47,9 +50,11 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
     }
 
     fun disconnect(){
+        bleDevice = null
         logUtil.d{
             "disconnect manually called"
         }
+        isAutoConnect = false
         manager?.disconnect()?.enqueue()
     }
 
@@ -139,6 +144,10 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
             "onDeviceDisconnected ${device.address}"
         }
         connected.postValue(false)
+        bleDevice?.takeIf { !isAutoConnect }?.let { //reconnect using the auto connect functionality
+            isAutoConnect = true
+            manager?.connect(it)?.useAutoConnect(true)?.retry(3, 2000)?.enqueue()
+        }
     }
 
     override fun onCleared() {
