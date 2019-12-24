@@ -4,6 +4,7 @@ import android.bluetooth.*
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.os.Message
 import android.util.Log
 import org.btelman.controller.rvr.drivers.bluetooth.Connection
@@ -57,7 +58,7 @@ class BluetoothLeHandler(val context: Context){
         it.start()
     }
 
-    internal val serviceHandler = Handler(handlerThread.looper){ message ->
+    internal val serviceHandler = Handler(Looper.getMainLooper()){ message ->
         when(message.what){
             SEND_MESSAGE -> tryWriteBytes(message)
             REQUEST_CONNECT -> tryConnect(message.obj as String)
@@ -153,6 +154,7 @@ class BluetoothLeHandler(val context: Context){
             super.onConnectionStateChange(gatt, status, newState)
             when(newState){
                 BluetoothProfile.STATE_CONNECTED -> {
+                    gattDevice?.discoverServices()
                     tryPublishState(Connection.STATE_CONNECTED)
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
@@ -191,7 +193,7 @@ class BluetoothLeHandler(val context: Context){
         }
     }
 
-    private fun tryConnect(address : String){
+    fun tryConnect(address : String){
         mBluetoothAdapter?:return
         tryPublishState(Connection.STATE_CONNECTING)
         if (!mBluetoothAdapter!!.isEnabled) {
@@ -201,7 +203,6 @@ class BluetoothLeHandler(val context: Context){
                 return
             }
         }
-        mBluetoothAdapter!!.cancelDiscovery()
         selectedDevice = mBluetoothAdapter!!.getRemoteDevice(address)
         gattDevice = selectedDevice?.connectGatt(context, false, callback)
     }

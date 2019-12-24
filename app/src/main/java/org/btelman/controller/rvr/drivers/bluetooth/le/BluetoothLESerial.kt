@@ -15,7 +15,8 @@ class BluetoothLESerial(context : Context, val address: String) : BluetoothGattI
     }
 
     override fun connect() {
-        Message.obtain(serial.serviceHandler,BluetoothLeHandler.REQUEST_CONNECT, address).sendToTarget()
+        serial.tryConnect(address)
+        //Message.obtain(serial.serviceHandler,BluetoothLeHandler.REQUEST_CONNECT, address).sendToTarget()
     }
 
     override fun disconnect() {

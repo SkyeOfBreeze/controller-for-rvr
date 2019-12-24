@@ -15,8 +15,8 @@ class RVRViewModel(application: Application) : AndroidViewModel(application) {
     private var manager : RVRManager? = null
     private var logUtil = LogUtil("RVRViewModel")
 
-    val connected: MutableLiveData<Boolean> by lazy {
-        MutableLiveData<Boolean>()
+    val connectionState: MutableLiveData<Int> by lazy {
+        MutableLiveData<Int>(Connection.STATE_IDLE)
     }
 
     private val batteryLevel: MutableLiveData<Float> by lazy {
@@ -37,7 +37,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application) {
             }
             manager = RVRManager(getApplication(), bluetoothDevice).also {
                 it.bluetooth.onStateChange {state ->
-                    connected.postValue(state == Connection.STATE_CONNECTED)
+                    connectionState.postValue(state)
                     logUtil.d{
                         "onStateChange ${state == Connection.STATE_CONNECTED}"
                     }

@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import no.nordicsemi.android.support.v18.scanner.ScanResult
+import org.btelman.controller.rvr.BleScanner
 import org.btelman.controller.rvr.R
 import org.btelman.logutil.kotlin.LogUtil
 
@@ -18,17 +19,17 @@ class ScanViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     val scanAddress = itemView.findViewById<TextView>(R.id.scanAddress)
     val scanName = itemView.findViewById<TextView>(R.id.scanName)
     val scanIndicator = itemView.findViewById<View>(R.id.scanIndicator)
-    var scanResult : ScanResult? = null
-    var onClickListener : ((ScanResult)->Unit)? = null
+    var scanResult : BleScanner.ScanResult? = null
+    var onClickListener : ((BleScanner.ScanResult)->Unit)? = null
 
-    fun bind(result : ScanResult){
+    fun bind(result : BleScanner.ScanResult){
         log.v{
-            "bind ${result.device.name} : ${result.rssi} dbm : isConnectable = ${result.isConnectable}"
+            "bind ${result.device.name} : ${result.rssi} dbm"
         }
         scanResult = result
-        scanName.text = result.scanRecord?.deviceName ?: "???"
+        scanName.text = result.device.name ?: "???"
         scanAddress.text = "${result.rssi} dbm"
-        scanIndicator.visibility = if(result.isConnectable) View.VISIBLE else View.INVISIBLE
+        scanIndicator.visibility = View.VISIBLE
         itemView.setOnClickListener {
             scanResult?.let { scanResultSafe ->
                 onClickListener?.invoke(scanResultSafe)
@@ -37,7 +38,7 @@ class ScanViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     }
 
     companion object{
-        class Adapter(val context : Context, val list : ArrayList<ScanResult>, var onItemClickListener : ((ScanResult)->Unit)? = null) : RecyclerView.Adapter<ScanViewHolder>() {
+        class Adapter(val context : Context, val list : ArrayList<BleScanner.ScanResult>, var onItemClickListener : ((BleScanner.ScanResult)->Unit)? = null) : RecyclerView.Adapter<ScanViewHolder>() {
 
             val log = LogUtil("ScanViewHolder.Adapter")
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ScanViewHolder {

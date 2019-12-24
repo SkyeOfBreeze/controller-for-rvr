@@ -30,6 +30,7 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.android.synthetic.main.content_main.*
 import org.btelman.controller.rvr.RVRViewModel
+import org.btelman.controller.rvr.drivers.bluetooth.Connection
 import org.btelman.controller.rvr.utils.DriveUtil
 import org.btelman.controller.rvr.utils.RemoReceiver
 import org.btelman.controller.rvr.utils.SpheroMotors
@@ -96,9 +97,15 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         rotationSpeedMaxValue.progress = (maxTurnSpeed*100.0f).roundToInt()
         handler = Handler()
         viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
-        viewModelRVR!!.connected.observe(this, Observer<Boolean> {
-            connectionStatusView.text = if(it) "connected" else "disconnected"
-            mainCoordinatorLayout.keepScreenOn = if(it) keepScreenAwake else false
+        viewModelRVR!!.connectionState.observe(this, Observer<Int> {
+            connectionStatusView.text = when(it){
+                Connection.STATE_ERROR -> "error"
+                Connection.STATE_CONNECTING -> "connecting..."
+                Connection.STATE_CONNECTED -> "connected"
+                Connection.STATE_DISCONNECTED -> "disconnected"
+                else -> "waiting for setup"
+            }
+            mainCoordinatorLayout.keepScreenOn = if(it == Connection.STATE_CONNECTED) keepScreenAwake else false
         })
         linearSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -170,7 +177,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 val checked = !item.isChecked
                 item.isChecked = checked
                 keepScreenAwake = checked
-                if(viewModelRVR?.connected?.value == true)
+                if(viewModelRVR?.connectionState?.value == Connection.STATE_CONNECTED)
                     mainCoordinatorLayout.keepScreenOn = checked
             }
         }
@@ -255,10 +262,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         if(bleLayout?.isShown != true) {
             bleLayout?.onItemClickedListener = {
                 log.d { it.toString() }
+                connectToDevice(it.device)
                 hideScanLayout()
-                handler?.postDelayed({
-                    connectToDevice(it.device)
-                }, 2000)
             }
             if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
                 Snackbar.make(mainCoordinatorLayout, "Bluetooth needs to be enabled", Snackbar.LENGTH_INDEFINITE)
@@ -280,8 +285,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     private fun connectToDevice(device: BluetoothDevice) {
         log.d { "connectToDevice" }
-        disconnectFromDevice()
-        connectionStatusView.text = "connecting..."
+        if(viewModelRVR?.connectionState?.value == Connection.STATE_CONNECTED)
+            disconnectFromDevice()
         viewModelRVR?.connect(device)
     }
 
@@ -292,7 +297,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     private fun sendMotorCommandFrame() {
         viewModelRVR?.let { viewModel->
-            if(viewModel.connected.value == true){
+            if(viewModel.connectionState.value == Connection.STATE_CONNECTED){
                 val axes = joystickSurfaceView.joystickAxes
                 var command : ByteArray
                 if(axes[0] != 0.0f || axes[1] != 0.0f){
