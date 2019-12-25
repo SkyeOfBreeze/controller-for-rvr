@@ -3,16 +3,14 @@ package org.btelman.controller.rvr.drivers.bluetooth.le.scanner
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.companion.BluetoothDeviceFilter
+import android.bluetooth.le.ScanRecord
 import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
-import androidx.lifecycle.MutableLiveData
 import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.v18.BleScannerV18
 import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.v21.BleScannerV21
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
@@ -22,7 +20,8 @@ import kotlin.collections.HashMap
 abstract class BleScanner protected constructor(context: Context){
     data class ScanResult(
         val device : BluetoothDevice,
-        val rssi : Int
+        val rssi : Int,
+        val scanRecord : ScanRecord? = null
     )
 
     val discoveredDevices = HashMap<String, ScanResult>()
@@ -47,12 +46,12 @@ abstract class BleScanner protected constructor(context: Context){
     fun scanLeDevice(enable: Boolean) {
         if (enable) {
             // Stops scanning after a pre-defined scan period.
-            handler.postDelayed({
-                mScanning = false
-                stopScan()
-            },
-                SCAN_PERIOD
-            )
+//            handler.postDelayed({
+//                mScanning = false
+//                stopScan()
+//            },
+//                SCAN_PERIOD
+//            )
             discoveredDevices.clear()
             mScanning = true
             startScan(serviceFilter)

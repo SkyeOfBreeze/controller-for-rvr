@@ -3,6 +3,7 @@ package org.btelman.controller.rvr.views
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
+import android.os.Build
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -12,6 +13,7 @@ import com.google.android.material.snackbar.ContentViewCallback
 import kotlinx.android.synthetic.main.ble_scan_layout.view.*
 import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.BleScanner
 import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.v21.BleScannerV21
+import org.btelman.controller.rvr.utils.RVRProps
 import org.btelman.logutil.kotlin.LogUtil
 
 /**
@@ -25,19 +27,8 @@ class BLEScanLayout @JvmOverloads constructor(
     val listRaw = HashMap<String, Pair<Long, BleScanner.ScanResult>>()
     val list = ArrayList<BleScanner.ScanResult>()
     val bleScanner = BleScanner.Builder(context).also {
-        it.legacy = true //use v18 api for now
+        it.legacy = false //use v18 api for now
     }.build()
-
-//    val scanner = BluetoothLeScannerCompat.getScanner()
-//    val settings = ScanSettings.Builder()
-//        .setLegacy(false)
-//        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-//        .setReportDelay(1000)
-//        .setUseHardwareBatchingIfSupported(true)
-//        .build()
-//    val filters = ArrayList<ScanFilter>().also {
-//        it.add(ScanFilter.Builder().setServiceUuid(RVRProps.ControlService).build())
-//    }
 
     private val onScannedDevices = {
             results: HashMap<String, BleScanner.ScanResult> ->
@@ -110,6 +101,7 @@ class BLEScanLayout @JvmOverloads constructor(
             "startScan"
         }
         (scanRecyclerView.adapter as ScanViewHolder.Companion.Adapter).onItemClickListener = onItemClicked
+        bleScanner.setDeviceFilter(RVRProps.ControlService)
         bleScanner.scanLeDevice(true)
     }
 

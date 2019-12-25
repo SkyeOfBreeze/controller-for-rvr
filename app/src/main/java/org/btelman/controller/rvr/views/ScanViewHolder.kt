@@ -1,6 +1,7 @@
 package org.btelman.controller.rvr.views
 
 import android.content.Context
+import android.os.Build
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,7 +28,11 @@ class ScanViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             "bind ${result.device.name} : ${result.rssi} dbm"
         }
         scanResult = result
-        scanName.text = result.device.name ?: "???"
+        var deviceName : String? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            deviceName = scanResult?.scanRecord?.deviceName
+        }
+        scanName.text = deviceName?: result.device.name ?: "???"
         scanAddress.text = "${result.rssi} dbm"
         scanIndicator.visibility = View.VISIBLE
         itemView.setOnClickListener {
