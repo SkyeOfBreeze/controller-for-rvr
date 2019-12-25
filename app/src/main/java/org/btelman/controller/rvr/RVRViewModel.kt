@@ -12,7 +12,6 @@ import org.btelman.logutil.kotlin.LogUtil
  * Created by Brendon on 12/7/2019.
  */
 class RVRViewModel(application: Application) : AndroidViewModel(application), RVRManagerCallbacks {
-    private var isAutoConnect = false
     private var manager : RVRManager? = null
     private var logUtil = LogUtil("RVRViewModel")
     private var bleDevice : BluetoothDevice? = null
@@ -54,7 +53,6 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
         logUtil.d{
             "disconnect manually called"
         }
-        isAutoConnect = false
         manager?.disconnect()?.enqueue()
     }
 
@@ -128,6 +126,10 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
         logUtil.e{
             "onError ${device.address} : $message : $errorCode"
         }
+        bleDevice?.let {
+            //reconnect using the auto connect functionality
+            manager?.connect(it)?.useAutoConnect(false)?.retry(3, 500)?.enqueue()
+        }
         connected.postValue(false)
     }
 
@@ -144,9 +146,9 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
             "onDeviceDisconnected ${device.address}"
         }
         connected.postValue(false)
-        bleDevice?.takeIf { !isAutoConnect }?.let { //reconnect using the auto connect functionality
-            isAutoConnect = true
-            manager?.connect(it)?.useAutoConnect(true)?.retry(3, 2000)?.enqueue()
+
+        bleDevice?.let { //reconnect using the auto connect functionality
+            manager?.connect(it)?.useAutoConnect(false)?.retry(3, 500)?.enqueue()
         }
     }
 
