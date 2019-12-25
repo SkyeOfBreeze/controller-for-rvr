@@ -6,9 +6,8 @@ import android.view.ViewGroup
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import android.widget.FrameLayout
 import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.lifecycle.ViewModelProviders
-import no.nordicsemi.android.support.v18.scanner.ScanResult
-import org.btelman.controller.rvr.BleScanner
+import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.BleScanner
+import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.v21.BleScannerV21
 
 /**
  * Kind of a snack bar, but not really. Google might not be really proud of this

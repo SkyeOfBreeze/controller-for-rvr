@@ -6,9 +6,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import no.nordicsemi.android.support.v18.scanner.ScanResult
-import org.btelman.controller.rvr.BleScanner
+import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.v21.BleScannerV21
 import org.btelman.controller.rvr.R
+import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.BleScanner
 import org.btelman.logutil.kotlin.LogUtil
 
 /**

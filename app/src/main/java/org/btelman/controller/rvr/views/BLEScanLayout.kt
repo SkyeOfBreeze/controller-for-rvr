@@ -4,16 +4,14 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.ContentViewCallback
 import kotlinx.android.synthetic.main.ble_scan_layout.view.*
-import no.nordicsemi.android.support.v18.scanner.*
-import org.btelman.controller.rvr.BleScanner
-import org.btelman.controller.rvr.utils.RVRProps
+import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.BleScanner
+import org.btelman.controller.rvr.drivers.bluetooth.le.scanner.v21.BleScannerV21
 import org.btelman.logutil.kotlin.LogUtil
 
 /**
@@ -26,7 +24,9 @@ class BLEScanLayout @JvmOverloads constructor(
     val log = LogUtil("BLEScanLayout")
     val listRaw = HashMap<String, Pair<Long, BleScanner.ScanResult>>()
     val list = ArrayList<BleScanner.ScanResult>()
-    val bleScanner = BleScanner(context)
+    val bleScanner = BleScanner.Builder(context).also {
+        it.legacy = true //use v18 api for now
+    }.build()
 
 //    val scanner = BluetoothLeScannerCompat.getScanner()
 //    val settings = ScanSettings.Builder()
@@ -69,27 +69,6 @@ class BLEScanLayout @JvmOverloads constructor(
             isScanning : Boolean ->
 
     }
-
-//    val scanCallback = object : ScanCallback(){
-//        override fun onScanFailed(errorCode: Int) {
-//            super.onScanFailed(errorCode)
-//            log.d {
-//                "onScanFailed $errorCode"
-//            }
-//        }
-//
-//        override fun onScanResult(callbackType: Int, result: ScanResult) {
-//            super.onScanResult(callbackType, result)
-//            log.d {
-//                "scanResult ${result.device.name}"
-//            }
-//        }
-//
-//        override fun onBatchScanResults(results: MutableList<ScanResult>) {
-//            super.onBatchScanResults(results)
-
-//        }
-//    }
 
     init {
         log.d{
