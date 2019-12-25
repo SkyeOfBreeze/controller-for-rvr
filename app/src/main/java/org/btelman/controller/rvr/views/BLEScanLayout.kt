@@ -32,7 +32,7 @@ class BLEScanLayout @JvmOverloads constructor(
     val settings = ScanSettings.Builder()
         .setLegacy(false)
         .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-        .setReportDelay(1000)
+        .setReportDelay(0)
         .setUseHardwareBatchingIfSupported(true)
         .build()
     val filters = ArrayList<ScanFilter>().also {
@@ -52,20 +52,8 @@ class BLEScanLayout @JvmOverloads constructor(
             log.d {
                 "scanResult ${result.device.name}"
             }
-        }
-
-        override fun onBatchScanResults(results: MutableList<ScanResult>) {
-            super.onBatchScanResults(results)
-            log.d {
-                var resultsStr = results.joinToString {
-                    "${it.scanRecord?.deviceName}:${it.device.address}"
-                }
-                /*return*/ "onBatchScanResults $resultsStr"
-            }
+            listRaw[result.device.address] = Pair(System.currentTimeMillis(), result)
             val botsToRemove = ArrayList<String>()
-            results.forEach {
-                listRaw[it.device.address] = Pair(System.currentTimeMillis(), it)
-            }
             list.clear()
             listRaw.forEach {
                 if(System.currentTimeMillis() - it.value.first > 10000){

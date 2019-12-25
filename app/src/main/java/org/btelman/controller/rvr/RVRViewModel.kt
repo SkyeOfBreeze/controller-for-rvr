@@ -14,6 +14,7 @@ import org.btelman.logutil.kotlin.LogUtil
 class RVRViewModel(application: Application) : AndroidViewModel(application), RVRManagerCallbacks {
     private var manager : RVRManager? = null
     private var logUtil = LogUtil("RVRViewModel")
+    private var bleDevice : BluetoothDevice? = null
 
     val connected: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>()
@@ -28,6 +29,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
     }
 
     fun connect(bluetoothDevice: BluetoothDevice){
+        bleDevice = bluetoothDevice
         logUtil.d{
             "connect ${bluetoothDevice.address}"
         }
@@ -39,7 +41,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
                 it.setGattCallbacks(this)
             }
         }
-        manager?.connect(bluetoothDevice)?.useAutoConnect(true)?.retry(3, 2000)?.enqueue()
+        manager?.connect(bluetoothDevice)?.retry(3, 2000)?.enqueue()
     }
 
     fun sendCommand(command : ByteArray){
@@ -47,6 +49,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
     }
 
     fun disconnect(){
+        bleDevice = null
         logUtil.d{
             "disconnect manually called"
         }
@@ -123,6 +126,10 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
         logUtil.e{
             "onError ${device.address} : $message : $errorCode"
         }
+        bleDevice?.let {
+            //reconnect using the auto connect functionality
+            manager?.connect(it)?.useAutoConnect(false)?.retry(3, 500)?.enqueue()
+        }
         connected.postValue(false)
     }
 
@@ -139,6 +146,10 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
             "onDeviceDisconnected ${device.address}"
         }
         connected.postValue(false)
+
+        bleDevice?.let { //reconnect using the auto connect functionality
+            manager?.connect(it)?.useAutoConnect(false)?.retry(3, 500)?.enqueue()
+        }
     }
 
     override fun onCleared() {
