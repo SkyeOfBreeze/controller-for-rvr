@@ -1,2 +1,2 @@
-include ':app'
+include ':app', ':spherorvrsdk'
 rootProject.name='Controller for RVR'
