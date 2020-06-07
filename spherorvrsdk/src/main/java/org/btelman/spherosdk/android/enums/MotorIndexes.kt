@@ -1,4 +1,4 @@
-package org.btelman.spherosdk.android.enums.drive
+package org.btelman.spherosdk.android.enums
 
 object MotorIndexes{
         val LEFT_MOTOR_INDEX = 0
