@@ -299,17 +299,41 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         viewModelRVR?.let { viewModel->
             if(viewModel.connectionState.value == Connection.STATE_CONNECTED){
                 val axes = joystickSurfaceView.joystickAxes
-                var command : ByteArray
+                var command : ByteArray? = null
                 if(axes[0] != 0.0f || axes[1] != 0.0f){
-                    DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
-                        val left = it.first
-                        val right = it.second
-                        command = SpheroMotors.drive(left, right)
-                    }
+                    linearSpeed = -axes[1]*maxSpeed
+                    angularSpeed = -axes[0]*maxTurnSpeed
                 } else{
                     command = SpheroMotors.drive(left, right)
                 }
-                viewModel.sendCommand(command)
+                DriveUtil.rcDrive(linearSpeed, angularSpeed, true).also {
+                    val left = it.first
+                    val right = it.second
+                    command = SpheroMotors.drive(left, right)
+                }
+                val forward =  byteArrayOf(0x31, 0x32, 0x44, 0x30, 0x53, 0x2d, 0x31)
+                val backward = byteArrayOf(0x31, 0x32, 0x44, 0x31, 0x53, 0x2d, 0x31)
+                val left =     byteArrayOf(0x31, 0x32, 0x44, 0x32, 0x53, 0x2d, 0x31)
+                val right =    byteArrayOf(0x31, 0x32, 0x44, 0x33, 0x53, 0x2d, 0x31)
+                when {
+                    linearSpeed > 0f -> {
+                        command = forward
+                    }
+                    linearSpeed < 0f -> {
+                        command = backward
+                    }
+                    angularSpeed > 0f -> {
+                        command = left
+                    }
+                    angularSpeed < 0f -> {
+                        command = right
+                    }
+                }
+                linearSpeed = 0f
+                angularSpeed = 0f
+                command?.let {
+                    viewModel.sendCommand(it)
+                }
             }
         }
     }
@@ -384,36 +408,32 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         }
     }
 
+    var linearSpeed : Float = 0f
+    var angularSpeed : Float = 0f
+
     override fun onCommand(command: String) {
-        val linearSpeed : Float
-        val rotateSpeed : Float
         when (command.replace("\r\n", "")) {
             "f" -> {
                 linearSpeed = 1f
-                rotateSpeed = 0f
+                angularSpeed = 0f
             }
             "b" -> {
                 linearSpeed = -1f
-                rotateSpeed = 0f
+                angularSpeed = 0f
             }
             "r" -> {
                 linearSpeed = 0f
-                rotateSpeed = -1f
+                angularSpeed = -1f
             }
             "l" -> {
                 linearSpeed = 0f
-                rotateSpeed = 1f
+                angularSpeed = 1f
             }
             else -> {
                 linearSpeed = 0f
-                rotateSpeed = 0f
+                angularSpeed = 0f
             }
         }
-        DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
-            left = it.first
-            right = it.second
-        }
-        sendMotorCommandFrame()
     }
 
     companion object {

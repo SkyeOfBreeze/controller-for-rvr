@@ -14,8 +14,8 @@ import java.util.*
  */
 class RVRManager(context: Context, device : BluetoothDevice){
     val log = LogUtil("RVRManager")
-    private val RVR_MAIN_SERVICE = UUID.fromString("00010001-574f-4f20-5370-6865726f2121")
-    private val RVR_COMMS_CHAR = UUID.fromString("00010002-574f-4f20-5370-6865726f2121")
+    private val RVR_MAIN_SERVICE = UUID.fromString("000000f3-0000-1000-8000-00805f9b34fb")
+    private val RVR_COMMS_CHAR = UUID.fromString("0000fff5-0000-1000-8000-00805f9b34fb")
 
     val bluetooth = BluetoothBuilder(context, device, BluetoothBuilder.TYPE_GATT_LE).build() as BluetoothGattInterface
 
