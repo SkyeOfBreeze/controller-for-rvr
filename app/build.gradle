@@ -53,10 +53,6 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation 'com.google.android.material:material:1.0.0'
 
-    //BLE
-    implementation 'no.nordicsemi.android:ble:2.1.1'
-    implementation 'no.nordicsemi.android.support.v18:scanner:1.4.2'
-
     //logutil
     api 'org.btelman.logutil:logutil:1.0'
 

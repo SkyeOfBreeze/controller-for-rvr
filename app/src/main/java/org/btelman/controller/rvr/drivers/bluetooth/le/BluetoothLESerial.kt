@@ -7,7 +7,7 @@ import org.btelman.controller.rvr.drivers.bluetooth.Connection
 import java.util.*
 
 class BluetoothLESerial(context : Context, val address: String) : BluetoothGattInterface {
-    var serial = BluetoothLeHandler(context) //todo do we really need context?
+    var serial = BluetoothLeHandler(context)
 
     @Connection.Status
     override fun getStatus(): Int {
@@ -15,8 +15,7 @@ class BluetoothLESerial(context : Context, val address: String) : BluetoothGattI
     }
 
     override fun connect() {
-        serial.tryConnect(address)
-        //Message.obtain(serial.serviceHandler,BluetoothLeHandler.REQUEST_CONNECT, address).sendToTarget()
+        Message.obtain(serial.serviceHandler,BluetoothLeHandler.REQUEST_CONNECT, address).sendToTarget()
     }
 
     override fun disconnect() {
