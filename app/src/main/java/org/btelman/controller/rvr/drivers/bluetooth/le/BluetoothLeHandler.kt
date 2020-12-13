@@ -96,21 +96,7 @@ class BluetoothLeHandler(val context: Context){
 
     private fun tryDequeueRegisterEvents() {
         gattDevice?:return //cannot run if gatt device is null
-        registrantQueue.forEach {
-            //dequeue a registrant
-            val data = it
-            val service = data.service
-            val characteristicUUID = data.characteristicUUID
-            val callback = data.callback
-            characteristicHolder[service]?:let{
-                characteristicHolder[service] = HashMap()
-            }
-            characteristicHolder[service]!![characteristicUUID]?:let {
-                gattDevice?.getService(service)?.getCharacteristic(characteristicUUID)?.let { characteristic ->
-                    characteristicHolder[service]!![characteristicUUID] = CharacteristicRegistrant(characteristic, callback)
-                }
-            }
-        }
+        registrantQueue.forEach(this::dequeueRegistrant)
         registrantQueue.clear()
 
         //scan for ones that have no characteristic, as it gets cleared on disconnects
@@ -126,6 +112,21 @@ class BluetoothLeHandler(val context: Context){
                     //put the characteristic in our holder
                     registrantEntry.value.characteristic = characteristic
                 }
+            }
+        }
+    }
+
+    private fun dequeueRegistrant(data : RegisterRequest){
+        //dequeue a registrant
+        val service = data.service
+        val characteristicUUID = data.characteristicUUID
+        val callback = data.callback
+        characteristicHolder[service]?:let{
+            characteristicHolder[service] = HashMap()
+        }
+        characteristicHolder[service]!![characteristicUUID]?:let {
+            gattDevice?.getService(service)?.getCharacteristic(characteristicUUID)?.let { characteristic ->
+                characteristicHolder[service]!![characteristicUUID] = CharacteristicRegistrant(characteristic, callback)
             }
         }
     }

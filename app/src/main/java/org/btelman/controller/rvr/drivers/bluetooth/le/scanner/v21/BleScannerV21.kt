@@ -42,28 +42,25 @@ class BleScannerV21(context: Context) : BleScanner(context) {
     var scanCallback = object : ScanCallback(){
         override fun onScanResult(callbackType: Int, result: android.bluetooth.le.ScanResult?) {
             super.onScanResult(callbackType, result)
-            result?.let {
-                discoveredDevices[it.device.address] =
-                    ScanResult(
-                        it.device,
-                        it.rssi,
-                        it.scanRecord
-                    )
-            }
-            onDiscoveredDevices?.invoke(discoveredDevices)
+            result?.let(this::addResult).also(this::updateDiscoveredDevices)
         }
 
         override fun onBatchScanResults(results: MutableList<android.bluetooth.le.ScanResult>?) {
             super.onBatchScanResults(results)
-            results?.forEach {
-                discoveredDevices[it.device.address] =
-                    ScanResult(
-                        it.device,
-                        it.rssi,
-                        it.scanRecord
-                    )
-            }
+            results?.forEach(this::addResult).also(this::updateDiscoveredDevices)
+        }
+
+        fun updateDiscoveredDevices(unused : Any?){
             onDiscoveredDevices?.invoke(discoveredDevices)
+        }
+
+        fun addResult(result : android.bluetooth.le.ScanResult){
+            discoveredDevices[result.device.address] =
+                ScanResult(
+                    result.device,
+                    result.rssi,
+                    result.scanRecord
+                )
         }
     }
 }

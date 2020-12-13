@@ -23,25 +23,22 @@ class BluetoothLESerial(context : Context, val address: String) : BluetoothGattI
     }
 
     override fun subscribe(service : UUID, characteristic: UUID, callback : (BluetoothGattCharacteristic)->Unit){
-        Message.obtain(serial.serviceHandler).also {
-            it.what = BluetoothLeHandler.REGISTER_UUID
-            it.obj = callback
-            it.data.also { bundle ->
-                bundle.putSerializable(BluetoothLeHandler.SERVICE_UUID_KEY, service)
-                bundle.putSerializable(BluetoothLeHandler.CHARACTERISTIC_UUID_KEY, characteristic)
-            }
-        }.sendToTarget()
+        createServiceMessage(BluetoothLeHandler.REGISTER_UUID, service, characteristic, callback).sendToTarget()
     }
 
     override fun writeBytes(service: UUID, characteristic: UUID, bytes: ByteArray) {
-        Message.obtain(serial.serviceHandler).also {
-            it.what = BluetoothLeHandler.SEND_MESSAGE
-            it.obj = bytes
+        createServiceMessage(BluetoothLeHandler.SEND_MESSAGE, service, characteristic, bytes).sendToTarget()
+    }
+
+    fun createServiceMessage(what: Int, service: UUID, characteristic: UUID, obj: Any?) : Message{
+        return Message.obtain(serial.serviceHandler).also {
+            it.what = what
+            it.obj = obj
             it.data.also { bundle ->
                 bundle.putSerializable(BluetoothLeHandler.SERVICE_UUID_KEY, service)
                 bundle.putSerializable(BluetoothLeHandler.CHARACTERISTIC_UUID_KEY, characteristic)
             }
-        }.sendToTarget()
+        }
     }
 
     override fun onStateChange(function: (state: Int) -> Unit) {
