@@ -14,6 +14,7 @@ import org.btelman.logutil.kotlin.LogUtil
 class RVRViewModel(application: Application) : AndroidViewModel(application) {
     private var manager : RVRManager? = null
     private var logUtil = LogUtil("RVRViewModel")
+    private var bleDevice : BluetoothDevice? = null
 
     val connectionState: MutableLiveData<Int> by lazy {
         MutableLiveData<Int>(Connection.STATE_IDLE)
@@ -28,6 +29,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun connect(bluetoothDevice: BluetoothDevice){
+        bleDevice = bluetoothDevice
         logUtil.d{
             "connect ${bluetoothDevice.address}"
         }
@@ -52,6 +54,7 @@ class RVRViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun disconnect(){
+        bleDevice = null
         logUtil.d{
             "disconnect manually called"
         }

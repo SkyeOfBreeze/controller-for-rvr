@@ -19,4 +19,4 @@ This app was made for the Sphero RVR, which was made by Sphero. Sphero is not ov
 
 
 Privacy Policy:
-[https://btelman.org/privacy/controller-for-rvr.html](https://btelman.org/privacy/controller-for-rvr.html)
+[https://cdn1.btelman.com/privacy/controller-for-rvr.html](https://cdn1.btelman.com/privacy/controller-for-rvr.html)
