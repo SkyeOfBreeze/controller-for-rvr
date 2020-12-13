@@ -4,36 +4,38 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.google.android.material.snackbar.Snackbar
-
-import kotlinx.android.synthetic.main.activity_main.*
-import org.btelman.controller.rvr.R
-import org.btelman.controller.rvr.views.BLEScanSnackBarThing
-import org.btelman.logutil.kotlin.LogUtil
-import android.net.Uri.fromParts
-import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE
 import android.net.Uri
+import android.net.Uri.fromParts
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
-import android.view.*
+import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+import android.view.InputDevice
+import android.view.Menu
+import android.view.MenuItem
+import android.view.MotionEvent
 import android.widget.SeekBar
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
+import org.btelman.controller.rvr.R
 import org.btelman.controller.rvr.RVRViewModel
 import org.btelman.controller.rvr.drivers.bluetooth.Connection
 import org.btelman.controller.rvr.utils.DriveUtil
 import org.btelman.controller.rvr.utils.RemoReceiver
 import org.btelman.controller.rvr.utils.SpheroMotors
+import org.btelman.controller.rvr.views.BLEScanSnackBarThing
+import org.btelman.logutil.kotlin.LogUtil
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
@@ -262,8 +264,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         if(bleLayout?.isShown != true) {
             bleLayout?.onItemClickedListener = {
                 log.d { it.toString() }
-                connectToDevice(it.device)
                 hideScanLayout()
+                connectToDevice(it.device)
             }
             if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
                 Snackbar.make(mainCoordinatorLayout, "Bluetooth needs to be enabled", Snackbar.LENGTH_INDEFINITE)

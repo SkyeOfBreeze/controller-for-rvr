@@ -159,6 +159,9 @@ class BluetoothLeHandler(val context: Context){
                     tryPublishState(Connection.STATE_CONNECTED)
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
+                    if(this@BluetoothLeHandler.status == Connection.STATE_CONNECTED || status == Connection.STATE_CONNECTING){
+                        tryReconnect()
+                    }
                     tryPublishState(Connection.STATE_DISCONNECTED)
                     //set all characteristics to null
                     characteristicHolder.forEach{ entry ->
@@ -194,6 +197,14 @@ class BluetoothLeHandler(val context: Context){
         }
     }
 
+
+    private fun tryReconnect() {
+        gattDevice?.let {
+            tryPublishState(Connection.STATE_CONNECTING)
+            it.connect()
+        }
+    }
+
     fun tryConnect(address : String){
         mBluetoothAdapter?:return
         tryPublishState(Connection.STATE_CONNECTING)
@@ -209,11 +220,17 @@ class BluetoothLeHandler(val context: Context){
     }
 
     private fun tryDisconnect(errorOccurred : Boolean = false){
-        selectedDevice = null
-        if(errorOccurred)
+        if(errorOccurred){
             tryPublishState(Connection.STATE_DISCONNECTED)
-        else
+        }
+        else{
+            characteristicHolder.clear()
+            selectedDevice = null
+            gattDevice?.disconnect()
+            gattDevice?.close()
+            gattDevice = null
             tryPublishState(Connection.STATE_IDLE) //connection is now idle. Do not attempt to restart
+        }
     }
 
     /**

@@ -23,11 +23,8 @@ class RVRManager(context: Context, device : BluetoothDevice){
 
     }
 
-    init {
-        bluetooth.subscribe(RVR_MAIN_SERVICE, RVR_COMMS_CHAR, onCommCharacteristicUpdate)
-    }
-
     fun connect(){
+        bluetooth.subscribe(RVR_MAIN_SERVICE, RVR_COMMS_CHAR, onCommCharacteristicUpdate)
         bluetooth.connect()
     }
 
