@@ -156,4 +156,18 @@ class RVRViewModel(application: Application) : AndroidViewModel(application), RV
         super.onCleared()
         disconnect()
     }
+
+    fun wake() {
+        val wakeUp = byteArrayOf(
+            (-115).toByte(),
+            24.toByte(),
+            0.toByte(),
+            19.toByte(),
+            13.toByte(),
+            1.toByte(),
+            (-58).toByte(),
+            (-40).toByte()
+        )
+        sendCommand(wakeUp)
+    }
 }

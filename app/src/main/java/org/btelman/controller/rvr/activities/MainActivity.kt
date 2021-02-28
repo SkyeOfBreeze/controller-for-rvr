@@ -3,7 +3,6 @@ package org.btelman.controller.rvr.activities
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +18,6 @@ import org.btelman.logutil.kotlin.LogUtil
 import android.net.Uri.fromParts
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE
 import android.net.Uri
 import android.os.Build
@@ -30,12 +28,15 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import kotlinx.android.synthetic.main.content_main.*
 import org.btelman.controller.rvr.RVRViewModel
-import org.btelman.controller.rvr.utils.DriveUtil
+import org.btelman.controller.rvr.utils.*
 import org.btelman.controller.rvr.utils.RemoReceiver
-import org.btelman.controller.rvr.utils.SpheroMotors
 import kotlin.math.roundToInt
 
-class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
+class MainActivity : AppCompatActivity() {
+    private var previousCommand: Long = System.currentTimeMillis()
+    private var timedOut = false
+    private lateinit var inputHandler: InputHandler
+    private lateinit var prefsManager: PrefsManager
     private var right = 0.0f
     private var left = 0.0f
     private var viewModelRVR: RVRViewModel? = null
@@ -44,65 +45,30 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private var bleLayout: BLEScanSnackBarThing? = null
     private lateinit var remoInterface : RemoReceiver
 
-    private lateinit var sharedPrefs : SharedPreferences
-
-    private var keepScreenAwake : Boolean
-        get() {
-            return sharedPrefs.getBoolean("keepScreenAwake", false)
-        }
-        set(value) {
-            sharedPrefs.edit().putBoolean("keepScreenAwake", value).apply()
-        }
-
-    private var _maxSpeed : Float? = null
-    private var maxSpeed : Float
-        get() {
-            _maxSpeed?: run {
-                _maxSpeed = sharedPrefs.getFloat("maxSpeed", .7f)
-            }
-            return _maxSpeed!!
-        }
-        set(value) {
-            _maxSpeed = value
-            sharedPrefs.edit().putFloat("maxSpeed", value).apply()
-        }
-
-    private var _maxTurnSpeed : Float? = null
-    private var maxTurnSpeed : Float
-        get() {
-            _maxTurnSpeed?: run {
-                _maxTurnSpeed = sharedPrefs.getFloat("maxTurnSpeed", .7f)
-            }
-            return _maxTurnSpeed!!
-        }
-        set(value) {
-            _maxTurnSpeed = value
-            sharedPrefs.edit().putFloat("maxTurnSpeed", value).apply()
-        }
-
     val log = LogUtil("MainActivity")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
-        sharedPrefs = getSharedPreferences("RVR", Context.MODE_PRIVATE)
+        prefsManager = PrefsManager(this)
+        inputHandler = InputHandler(this, prefsManager, this::onInputUpdated)
         if(!packageManager.hasSystemFeature(FEATURE_BLUETOOTH_LE)){
             connectionStatusView.text = "Device does not support required bluetooth mode"
             log.e { "Device does not support Bluetooth LE" }
             return
         }
-        linearSpeedMaxValue.progress = (maxSpeed*100.0f).roundToInt()
-        rotationSpeedMaxValue.progress = (maxTurnSpeed*100.0f).roundToInt()
+        linearSpeedMaxValue.progress = (prefsManager.maxSpeed*100.0f).roundToInt()
+        rotationSpeedMaxValue.progress = (prefsManager.maxTurnSpeed*100.0f).roundToInt()
         handler = Handler()
         viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
         viewModelRVR!!.connected.observe(this, Observer<Boolean> {
             connectionStatusView.text = if(it) "connected" else "disconnected"
-            mainCoordinatorLayout.keepScreenOn = if(it) keepScreenAwake else false
+            mainCoordinatorLayout.keepScreenOn = if(it) prefsManager.keepScreenAwake else false
         })
         linearSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                maxSpeed = progress/100.0f
+                prefsManager.maxSpeed = progress/100.0f
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -111,15 +77,17 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
         rotationSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                maxTurnSpeed = progress/100.0f
+                prefsManager.maxTurnSpeed = progress/100.0f
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
-        remoInterface = RemoReceiver(this, this)
+        remoInterface = RemoReceiver(this, inputHandler)
         remoInterface.register()
+
+        joystickSurfaceView.setListener(inputHandler)
 
         connectionStatusView.setOnClickListener {
             disconnectFromDevice()
@@ -152,10 +120,15 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         handler?.removeCallbacks(motorLooper)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        remoInterface.unregister()
+    }
+
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return super.onCreateOptionsMenu(menu).also {
-            menu?.findItem(R.id.action_keep_screen_on)?.isChecked = keepScreenAwake
+            menu?.findItem(R.id.action_keep_screen_on)?.isChecked = prefsManager.keepScreenAwake
         }
     }
 
@@ -169,7 +142,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             R.id.action_keep_screen_on -> {
                 val checked = !item.isChecked
                 item.isChecked = checked
-                keepScreenAwake = checked
+                prefsManager.keepScreenAwake = checked
                 if(viewModelRVR?.connected?.value == true)
                     mainCoordinatorLayout.keepScreenOn = checked
             }
@@ -177,42 +150,11 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         return super.onOptionsItemSelected(item)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        remoInterface.unregister()
-    }
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_ENABLE_BLUETOOTH && resultCode == RESULT_OK) {
             showScanLayout()
         }
-    }
-
-    private fun showPermissionsRationale() {
-        Snackbar.make(mainCoordinatorLayout, R.string.btPermRequestText, Snackbar.LENGTH_INDEFINITE).also {
-            it.setAction("Allow"){
-                allowPermissionClickedTime = System.currentTimeMillis()
-                requestPerms()
-            }
-        }.show()
-    }
-
-    private fun checkPerms() : Boolean{
-        if (Build.VERSION.SDK_INT >= 23) {
-            return (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                    == PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                    == PackageManager.PERMISSION_GRANTED)
-        }
-        else return true
-    }
-
-    fun requestPerms(){
-        ActivityCompat.requestPermissions(this,
-            arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
-            PERM_REQUEST_LOCATION
-        )
     }
 
     override fun onRequestPermissionsResult(requestCode: Int,
@@ -248,6 +190,42 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         }
     }
 
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        return inputHandler.processMotionEvent(event) || super.onGenericMotionEvent(event)
+    }
+
+    fun onInputUpdated(left : Float, right: Float){
+        this.left = left
+        this.right = right
+        sendMotorCommandFrame()
+    }
+
+    private fun showPermissionsRationale() {
+        Snackbar.make(mainCoordinatorLayout, R.string.btPermRequestText, Snackbar.LENGTH_INDEFINITE).also {
+            it.setAction("Allow"){
+                allowPermissionClickedTime = System.currentTimeMillis()
+                requestPerms()
+            }
+        }.show()
+    }
+
+    private fun checkPerms() : Boolean{
+        if (Build.VERSION.SDK_INT >= 23) {
+            return (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED)
+        }
+        else return true
+    }
+
+    fun requestPerms(){
+        ActivityCompat.requestPermissions(this,
+            arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
+            PERM_REQUEST_LOCATION
+        )
+    }
+
     fun showScanLayout() {
         bleLayout ?: let {
             bleLayout = BLEScanSnackBarThing.make(mainCoordinatorLayout)
@@ -274,6 +252,14 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         }
     }
 
+    fun hideScanLayout(){
+        fab.setImageResource(android.R.drawable.stat_sys_data_bluetooth)
+        if(bleLayout?.isShown == true) {
+            bleLayout?.dismiss()
+            bleLayout?.onItemClickedListener = null
+        }
+    }
+
     private fun disconnectFromDevice(){
         viewModelRVR?.disconnect()
     }
@@ -293,10 +279,23 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private fun sendMotorCommandFrame() {
         viewModelRVR?.let { viewModel->
             if(viewModel.connected.value == true){
+                val lastInputCommand = System.currentTimeMillis() - inputHandler.lastUpdated
+                if(lastInputCommand > prefsManager.timeoutMs){
+                    if(timedOut && lastInputCommand > prefsManager.timeoutMs + 1000) return //allow it to send the stop command for a second
+                    timedOut = true
+                    left = 0f
+                    right = 0f
+                }
+                else{
+                    if(timedOut || System.currentTimeMillis() - previousCommand > prefsManager.timeoutMs){ //we hit the timeout at some point, better make sure RVR is awake
+                        viewModel.wake()
+                    }
+                    timedOut = false
+                }
                 val axes = joystickSurfaceView.joystickAxes
                 var command : ByteArray
                 if(axes[0] != 0.0f || axes[1] != 0.0f){
-                    DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
+                    DriveUtil.rcDrive(-axes[1]*prefsManager.maxSpeed, -axes[0]*prefsManager.maxTurnSpeed, true).also {
                         val left = it.first
                         val right = it.second
                         command = SpheroMotors.drive(left, right)
@@ -305,110 +304,13 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                     command = SpheroMotors.drive(left, right)
                 }
                 viewModel.sendCommand(command)
+                previousCommand = inputHandler.lastUpdated
             }
         }
     }
 
     private fun scheduleNewMotorLooper() {
         handler?.postDelayed(motorLooper, 45)
-    }
-
-    fun hideScanLayout(){
-        fab.setImageResource(android.R.drawable.stat_sys_data_bluetooth)
-        if(bleLayout?.isShown == true) {
-            bleLayout?.dismiss()
-            bleLayout?.onItemClickedListener = null
-        }
-    }
-
-    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        // Check that the event came from a game controller
-        if (event.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK && event.action == MotionEvent.ACTION_MOVE) {
-            processJoystickInput(event, -1)
-            return true
-        }
-        return super.onGenericMotionEvent(event)
-    }
-
-    private fun getCenteredAxis(
-        event: MotionEvent,
-        device: InputDevice, axis: Int, historyPos: Int
-    ): Float {
-        val range = device.getMotionRange(axis, event.source)
-
-        // A joystick at rest does not always report an absolute position of
-        // (0,0). Use the getFlat() method to determine the range of values
-        // bounding the joystick axis center.
-        if (range != null) {
-            val flat = range.flat
-            val value = if (historyPos < 0)
-                event.getAxisValue(axis)
-            else
-                event.getHistoricalAxisValue(axis, historyPos)
-
-            // Ignore axis values that are within the 'flat' region of the
-            // joystick axis center.
-            if (Math.abs(value) > flat) {
-                return value
-            }
-        }
-        return 0f
-    }
-
-    private fun processJoystickInput(
-        event: MotionEvent,
-        historyPos: Int
-    ) {
-
-        val mInputDevice = event.device
-
-        // Calculate the vertical distance to move by
-        // using the input value from one of these physical controls:
-        // the left control stick, hat switch, or the right control stick.
-        val linearSpeed = -getCenteredAxis(
-            event, mInputDevice,
-            MotionEvent.AXIS_Y, historyPos
-        )
-        val rotateSpeed = -getCenteredAxis(
-            event, mInputDevice,
-            MotionEvent.AXIS_Z, historyPos
-        )
-        DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
-            left = it.first
-            right = it.second
-        }
-    }
-
-    override fun onCommand(command: String) {
-        val linearSpeed : Float
-        val rotateSpeed : Float
-        when (command.replace("\r\n", "")) {
-            "f" -> {
-                linearSpeed = 1f
-                rotateSpeed = 0f
-            }
-            "b" -> {
-                linearSpeed = -1f
-                rotateSpeed = 0f
-            }
-            "r" -> {
-                linearSpeed = 0f
-                rotateSpeed = -1f
-            }
-            "l" -> {
-                linearSpeed = 0f
-                rotateSpeed = 1f
-            }
-            else -> {
-                linearSpeed = 0f
-                rotateSpeed = 0f
-            }
-        }
-        DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
-            left = it.first
-            right = it.second
-        }
-        sendMotorCommandFrame()
     }
 
     companion object {
