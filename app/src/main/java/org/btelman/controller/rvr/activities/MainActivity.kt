@@ -4,35 +4,38 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.google.android.material.snackbar.Snackbar
-
-import kotlinx.android.synthetic.main.activity_main.*
-import org.btelman.controller.rvr.R
-import org.btelman.controller.rvr.views.BLEScanSnackBarThing
-import org.btelman.logutil.kotlin.LogUtil
-import android.net.Uri.fromParts
-import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.content.pm.PackageManager.FEATURE_BLUETOOTH_LE
 import android.net.Uri
+import android.net.Uri.fromParts
 import android.os.Build
+import android.os.Bundle
 import android.os.Handler
-import android.view.*
+import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+import android.view.InputDevice
+import android.view.Menu
+import android.view.MenuItem
+import android.view.MotionEvent
 import android.widget.SeekBar
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
+import org.btelman.controller.rvr.R
 import org.btelman.controller.rvr.RVRViewModel
+import org.btelman.controller.rvr.drivers.bluetooth.Connection
 import org.btelman.controller.rvr.utils.DriveUtil
 import org.btelman.controller.rvr.utils.RemoReceiver
 import org.btelman.controller.rvr.utils.SpheroMotors
+import org.btelman.controller.rvr.views.BLEScanSnackBarThing
+import org.btelman.logutil.kotlin.LogUtil
 import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
@@ -45,6 +48,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private lateinit var remoInterface : RemoReceiver
 
     private lateinit var sharedPrefs : SharedPreferences
+    private var latestDriveCommand = 0L
 
     private var keepScreenAwake : Boolean
         get() {
@@ -96,9 +100,15 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
         rotationSpeedMaxValue.progress = (maxTurnSpeed*100.0f).roundToInt()
         handler = Handler()
         viewModelRVR = ViewModelProviders.of(this)[RVRViewModel::class.java]
-        viewModelRVR!!.connected.observe(this, Observer<Boolean> {
-            connectionStatusView.text = if(it) "connected" else "disconnected"
-            mainCoordinatorLayout.keepScreenOn = if(it) keepScreenAwake else false
+        viewModelRVR!!.connectionState.observe(this, Observer<Int> {
+            connectionStatusView.text = when(it){
+                Connection.STATE_ERROR -> "error"
+                Connection.STATE_CONNECTING -> "connecting..."
+                Connection.STATE_CONNECTED -> "connected"
+                Connection.STATE_DISCONNECTED -> "disconnected"
+                else -> "waiting for setup"
+            }
+            mainCoordinatorLayout.keepScreenOn = if(it == Connection.STATE_CONNECTED) keepScreenAwake else false
         })
         linearSpeedMaxValue.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener{
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -170,7 +180,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 val checked = !item.isChecked
                 item.isChecked = checked
                 keepScreenAwake = checked
-                if(viewModelRVR?.connected?.value == true)
+                if(viewModelRVR?.connectionState?.value == Connection.STATE_CONNECTED)
                     mainCoordinatorLayout.keepScreenOn = checked
             }
         }
@@ -256,9 +266,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             bleLayout?.onItemClickedListener = {
                 log.d { it.toString() }
                 hideScanLayout()
-                handler?.postDelayed({
-                    connectToDevice(it.device)
-                }, 2000)
+                connectToDevice(it.device)
             }
             if(!BluetoothAdapter.getDefaultAdapter().isEnabled) {
                 Snackbar.make(mainCoordinatorLayout, "Bluetooth needs to be enabled", Snackbar.LENGTH_INDEFINITE)
@@ -280,8 +288,8 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     private fun connectToDevice(device: BluetoothDevice) {
         log.d { "connectToDevice" }
-        disconnectFromDevice()
-        connectionStatusView.text = "connecting..."
+        if(viewModelRVR?.connectionState?.value == Connection.STATE_CONNECTED)
+            disconnectFromDevice()
         viewModelRVR?.connect(device)
     }
 
@@ -292,16 +300,23 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
 
     private fun sendMotorCommandFrame() {
         viewModelRVR?.let { viewModel->
-            if(viewModel.connected.value == true){
+            if(viewModel.connectionState.value == Connection.STATE_CONNECTED){
+                if(System.currentTimeMillis() - latestDriveCommand > 60000){ //60 seconds delay
+                    viewModel.sleep()
+                }
                 val axes = joystickSurfaceView.joystickAxes
                 var command : ByteArray
                 if(axes[0] != 0.0f || axes[1] != 0.0f){
+                    latestDriveCommand = System.currentTimeMillis()
                     DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
                         val left = it.first
                         val right = it.second
                         command = SpheroMotors.drive(left, right)
                     }
                 } else{
+                    if(left != 0f || right != 0f){
+                        viewModel.wakeup()
+                    }
                     command = SpheroMotors.drive(left, right)
                 }
                 viewModel.sendCommand(command)
@@ -373,6 +388,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             event, mInputDevice,
             MotionEvent.AXIS_Z, historyPos
         )
+        latestDriveCommand = System.currentTimeMillis()
         DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
             left = it.first
             right = it.second
@@ -404,6 +420,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 rotateSpeed = 0f
             }
         }
+        latestDriveCommand = System.currentTimeMillis()
         DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
             left = it.first
             right = it.second

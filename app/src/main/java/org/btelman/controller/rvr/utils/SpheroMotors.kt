@@ -9,13 +9,19 @@ import kotlin.math.roundToInt
  * Created by Brendon on 10/23/2019.
  */
 object SpheroMotors {
+    fun getId() : Byte{
+        id++
+        return id.toByte()
+    }
+
+    var id = 0
     var driveCommand = byteArrayOf(
         (-115).toByte(),
         24.toByte(),
         2.toByte(),
         22.toByte(),
         1.toByte(),
-        0.toByte(),
+        getId(),
         2.toByte(),
         (-119).toByte(),
         1.toByte(),
@@ -36,7 +42,7 @@ object SpheroMotors {
     }
 
     fun drive(leftMode: Int, leftSpeed: Int, rightMode: Int, rightSpeed: Int): ByteArray {
-        driveCommand[5]++
+        driveCommand[5] = getId()
         driveCommand[6] = leftMode.toByte()
         driveCommand[7] = leftSpeed.toByte()
         driveCommand[8] = rightMode.toByte()
@@ -45,7 +51,7 @@ object SpheroMotors {
         return driveCommand
     }
 
-    private fun checksum(driveCommand: ByteArray, checksumIndex: Int): Byte {
+    fun checksum(driveCommand: ByteArray, checksumIndex: Int): Byte {
         var sum: Byte = 0
         //skip index 0
         for (i in 1 until checksumIndex) {
