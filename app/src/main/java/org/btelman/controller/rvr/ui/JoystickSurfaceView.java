@@ -38,6 +38,7 @@ public class JoystickSurfaceView extends SurfaceView implements SurfaceHolder.Ca
     float xOutput = 0, yOutput = 0, xOffset = 0, yOffset = 0, xFinalOutput = 0, yFinalOutput = 0;
     int sleepTime = 10;
     private boolean hideView;
+    private JoystickUpdateListener listener = null;
 
     public JoystickSurfaceView(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
@@ -52,6 +53,10 @@ public class JoystickSurfaceView extends SurfaceView implements SurfaceHolder.Ca
     public JoystickSurfaceView(Context context) {
         super(context);
         init();
+    }
+
+    public void setListener(JoystickUpdateListener listener){
+        this.listener = listener;
     }
 
     private void init() {
@@ -146,11 +151,13 @@ public class JoystickSurfaceView extends SurfaceView implements SurfaceHolder.Ca
                         }
                     }
                     mSurfaceHolder.unlockCanvasAndPost(canvas); //Done with drawing for this cycle
-
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        if(listener != null){
+            listener.OnJoystickUpdate(this.getId(), getJoystickAxes());
+        }
     }
 
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
@@ -342,5 +349,9 @@ public class JoystickSurfaceView extends SurfaceView implements SurfaceHolder.Ca
         float output = ((input - inMin) / (inMax - inMin)) * (outMax - outMin) + outMin;
         //if()
         return range(output, outMin, outMax);
+    }
+
+    public interface JoystickUpdateListener{
+        void OnJoystickUpdate(int id, float[] joystickAxes);
     }
 }
