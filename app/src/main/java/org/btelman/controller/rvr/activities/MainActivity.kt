@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private lateinit var remoInterface : RemoReceiver
 
     private lateinit var sharedPrefs : SharedPreferences
+    private var latestDriveCommand = 0L
 
     private var keepScreenAwake : Boolean
         get() {
@@ -300,15 +301,22 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
     private fun sendMotorCommandFrame() {
         viewModelRVR?.let { viewModel->
             if(viewModel.connectionState.value == Connection.STATE_CONNECTED){
+                if(System.currentTimeMillis() - latestDriveCommand > 60000){ //60 seconds delay
+                    viewModel.sleep()
+                }
                 val axes = joystickSurfaceView.joystickAxes
                 var command : ByteArray
                 if(axes[0] != 0.0f || axes[1] != 0.0f){
+                    latestDriveCommand = System.currentTimeMillis()
                     DriveUtil.rcDrive(-axes[1]*maxSpeed, -axes[0]*maxTurnSpeed, true).also {
                         val left = it.first
                         val right = it.second
                         command = SpheroMotors.drive(left, right)
                     }
                 } else{
+                    if(left != 0f || right != 0f){
+                        viewModel.wakeup()
+                    }
                     command = SpheroMotors.drive(left, right)
                 }
                 viewModel.sendCommand(command)
@@ -380,6 +388,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
             event, mInputDevice,
             MotionEvent.AXIS_Z, historyPos
         )
+        latestDriveCommand = System.currentTimeMillis()
         DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
             left = it.first
             right = it.second
@@ -411,6 +420,7 @@ class MainActivity : AppCompatActivity(), RemoReceiver.RemoListener {
                 rotateSpeed = 0f
             }
         }
+        latestDriveCommand = System.currentTimeMillis()
         DriveUtil.rcDrive(linearSpeed*maxSpeed, rotateSpeed*maxTurnSpeed,true).also {
             left = it.first
             right = it.second

@@ -40,6 +40,8 @@ class RVRViewModel(application: Application) : AndroidViewModel(application) {
             manager = RVRManager(getApplication(), bluetoothDevice).also {
                 it.bluetooth.onStateChange {state ->
                     connectionState.postValue(state)
+                    if(state == Connection.STATE_CONNECTED)
+                        manager?.wake()
                     logUtil.d{
                         "onStateChange ${state == Connection.STATE_CONNECTED}"
                     }
@@ -64,5 +66,13 @@ class RVRViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         disconnect()
+    }
+
+    fun sleep() {
+        manager?.sleep()
+    }
+
+    fun wakeup() {
+        manager?.wake()
     }
 }
