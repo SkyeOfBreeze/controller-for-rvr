@@ -14,6 +14,10 @@ class InputHandler(
 ) : RemoReceiver.RemoListener, JoystickSurfaceView.JoystickUpdateListener,
     GamepadHandler.GamepadListener {
     private var lastGamepadId: Int? = null
+    val isInputGamepad : Boolean
+        get() {
+            return lastGamepadId != null
+        }
     var right = 0.0f
     var left = 0.0f
     var lastUpdated = System.currentTimeMillis()
@@ -71,7 +75,7 @@ class InputHandler(
         historyPos: Int
     ) {
 
-        val mInputDevice = event.device
+        val mInputDevice = event.device ?: return
 
         // Calculate the vertical distance to move by
         // using the input value from one of these physical controls:
@@ -93,6 +97,7 @@ class InputHandler(
     }
 
     override fun onCommand(command: String) {
+        lastGamepadId = null
         Log.d("InputHandler",command)
         val linearSpeed : Float
         val rotateSpeed : Float
@@ -126,6 +131,7 @@ class InputHandler(
     }
 
     override fun OnJoystickUpdate(id: Int, joystickAxes: FloatArray?) {
+        lastGamepadId = null
         if(joystickAxes == null) return
         val y = joystickAxes[0]
         val x = joystickAxes[1]
@@ -147,6 +153,8 @@ class InputHandler(
             Toast.makeText(context, "Lost connection to gamepad", Toast.LENGTH_SHORT).show()
             left = 0f
             right = 0f
+            lastGamepadId = null
+            lastUpdated = System.currentTimeMillis()
             sendInputUpdatedEvent()
         }
     }

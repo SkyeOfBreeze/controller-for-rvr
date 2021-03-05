@@ -281,7 +281,7 @@ class MainActivity : AppCompatActivity() {
         viewModelRVR?.let { viewModel->
             if(viewModel.connected.value == true){
                 val lastInputCommand = System.currentTimeMillis() - inputHandler.lastUpdated
-                if(lastInputCommand > prefsManager.timeoutMs){
+                if(!inputHandler.isInputGamepad && lastInputCommand > prefsManager.timeoutMs){
                     if(timedOut && lastInputCommand > prefsManager.timeoutMs + 1000) return //allow it to send the stop command for a second
                     timedOut = true
                     left = 0f
