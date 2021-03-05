@@ -123,6 +123,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         remoInterface.unregister()
+        inputHandler.onDestroy()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
