@@ -4,16 +4,28 @@ import android.content.Context
 import android.util.Log
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.widget.Toast
 import org.btelman.controller.rvr.ui.JoystickSurfaceView
 
 class InputHandler(
     val context: Context,
     val prefsManager: PrefsManager,
     val onInputUpdate: (left: Float, right: Float)->Unit
-) : RemoReceiver.RemoListener, JoystickSurfaceView.JoystickUpdateListener {
+) : RemoReceiver.RemoListener, JoystickSurfaceView.JoystickUpdateListener,
+    GamepadHandler.GamepadListener {
+    private var lastGamepadId: Int? = null
     var right = 0.0f
     var left = 0.0f
     var lastUpdated = System.currentTimeMillis()
+    var gamepadHandler = GamepadHandler(context)
+
+    init {
+        gamepadHandler.registerListener(this)
+    }
+
+    fun onDestroy(){
+        gamepadHandler.onDestroy()
+    }
 
     private fun sendInputUpdatedEvent() {
         lastUpdated = System.currentTimeMillis()
@@ -75,6 +87,7 @@ class InputHandler(
         DriveUtil.rcDrive(linearSpeed*prefsManager.maxSpeed, rotateSpeed*prefsManager.maxTurnSpeed,true).also {
             left = it.first
             right = it.second
+            lastGamepadId = mInputDevice.id
         }
         sendInputUpdatedEvent()
     }
@@ -123,5 +136,18 @@ class InputHandler(
             right = it.second
         }
         sendInputUpdatedEvent()
+    }
+
+    override fun onConnection(device: Int) {
+        //ignore
+    }
+
+    override fun onDisconnect(device: Int) {
+        if(lastGamepadId == device){
+            Toast.makeText(context, "Lost connection to gamepad", Toast.LENGTH_SHORT).show()
+            left = 0f
+            right = 0f
+            sendInputUpdatedEvent()
+        }
     }
 }
